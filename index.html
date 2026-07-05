@@ -13,7 +13,7 @@
       <header class="app-header">
         <div>
           <h1>PicNest Mobile Inbox</h1>
-          <p>Команды для PicNestInbox · v5</p>
+          <p>Команды для PicNestInbox · v6</p>
         </div>
         <button id="install-button" class="ghost-button" type="button" hidden>Установить</button>
       </header>
@@ -25,30 +25,35 @@
         <button class="mode-tab" type="button" data-mode="update_fields">Поля</button>
       </nav>
 
-      <section class="card">
-        <h2>Dropbox</h2>
-        <label>
-          <span>App key</span>
-          <input id="dropbox-app-key" type="text" autocomplete="off" placeholder="Dropbox app key" />
-        </label>
-        <label>
-          <span>Redirect URI</span>
-          <input id="dropbox-redirect-uri" type="text" readonly />
-        </label>
-        <label>
-          <span>Access token fallback</span>
-          <input id="dropbox-token" type="password" autocomplete="off" placeholder="sl..." />
-        </label>
-        <label>
-          <span>Inbox path</span>
-          <input id="dropbox-inbox-path" type="text" value="/ЗП_test/PicNestInbox" autocomplete="off" />
-        </label>
-        <div id="dropbox-auth-status" class="inline-status">Dropbox не подключен.</div>
-        <div class="actions">
-          <button id="connect-dropbox-button" class="primary-button" type="button">Войти в Dropbox</button>
-          <button id="check-dropbox-button" class="ghost-button" type="button">Проверить Dropbox</button>
-          <button id="disconnect-dropbox-button" class="ghost-button" type="button">Выйти</button>
-          <button id="save-dropbox-settings-button" class="ghost-button" type="button">Сохранить</button>
+      <section id="dropbox-card" class="card collapsible-card">
+        <div class="card-title-row">
+          <h2>Dropbox</h2>
+          <button id="toggle-dropbox-button" class="ghost-button small-button" type="button">Свернуть</button>
+        </div>
+        <div id="dropbox-settings-body" class="collapsible-body">
+          <label>
+            <span>App key</span>
+            <input id="dropbox-app-key" type="text" autocomplete="off" placeholder="Dropbox app key" />
+          </label>
+          <label>
+            <span>Redirect URI</span>
+            <input id="dropbox-redirect-uri" type="text" readonly />
+          </label>
+          <label>
+            <span>Access token fallback</span>
+            <input id="dropbox-token" type="password" autocomplete="off" placeholder="sl..." />
+          </label>
+          <label>
+            <span>Inbox path</span>
+            <input id="dropbox-inbox-path" type="text" value="/ЗП_test/PicNestInbox" autocomplete="off" />
+          </label>
+          <div id="dropbox-auth-status" class="inline-status">Dropbox не подключен.</div>
+          <div class="actions">
+            <button id="connect-dropbox-button" class="primary-button" type="button">Войти в Dropbox</button>
+            <button id="check-dropbox-button" class="ghost-button" type="button">Проверить Dropbox</button>
+            <button id="disconnect-dropbox-button" class="ghost-button" type="button">Выйти</button>
+            <button id="save-dropbox-settings-button" class="ghost-button" type="button">Сохранить</button>
+          </div>
         </div>
       </section>
 
@@ -91,9 +96,9 @@
             </label>
           </div>
           <div class="parsed-grid">
-            <div><span>source_url</span><strong id="parsed-source-url">—</strong></div>
-            <div><span>source</span><strong id="parsed-source">—</strong></div>
-            <div><span>filename</span><strong id="parsed-filename">—</strong></div>
+            <div><strong>source_url</strong><span id="parsed-source-url">—</span></div>
+            <div><strong>source</strong><span id="parsed-source">—</span></div>
+            <div><strong>filename</strong><span id="parsed-filename">—</span></div>
           </div>
         </section>
 
@@ -103,18 +108,22 @@
             <span>Main image</span>
             <input id="create-main-image" type="file" accept="image/*" />
           </label>
+          <button id="clear-create-main-image" class="ghost-button clear-control" type="button">Удалить файл</button>
           <label>
             <span>Main image URL</span>
             <input id="create-main-image-url" type="url" autocomplete="off" placeholder="https://cdn.site/image.jpg" />
           </label>
+          <button id="clear-create-main-image-url" class="ghost-button clear-control" type="button">Удалить URL</button>
           <label>
             <span>Duplicate images</span>
             <input id="create-duplicate-images" type="file" accept="image/*" multiple />
           </label>
+          <button id="clear-create-duplicate-images" class="ghost-button clear-control" type="button">Удалить файлы</button>
           <label>
             <span>Duplicate image URLs</span>
             <textarea id="create-duplicate-image-urls" rows="3" placeholder="Один URL картинки на строку"></textarea>
           </label>
+          <button id="clear-create-duplicate-image-urls" class="ghost-button clear-control" type="button">Удалить URL</button>
         </section>
       </form>
 
@@ -133,10 +142,12 @@
             <span>Duplicate images</span>
             <input id="add-images" type="file" accept="image/*" multiple />
           </label>
+          <button id="clear-add-images" class="ghost-button clear-control" type="button">Удалить файлы</button>
           <label>
             <span>Duplicate image URLs</span>
             <textarea id="add-image-urls" rows="3" placeholder="Один URL картинки на строку"></textarea>
           </label>
+          <button id="clear-add-image-urls" class="ghost-button clear-control" type="button">Удалить URL</button>
         </section>
       </form>
 
@@ -198,11 +209,11 @@
       <section class="card output-card">
         <div class="output-header">
           <h2>JSON</h2>
-          <div class="actions">
-            <button id="copy-json-button" type="button" class="ghost-button">Копировать</button>
-            <button id="download-json-button" type="button" class="primary-button">Скачать JSON</button>
-            <button id="send-dropbox-button" type="button" class="primary-button">Отправить в Dropbox</button>
-          </div>
+        </div>
+        <div class="actions json-actions">
+          <button id="copy-json-button" type="button" class="ghost-button">Копировать</button>
+          <button id="download-json-button" type="button" class="primary-button">Скачать JSON</button>
+          <button id="send-dropbox-button" type="button" class="primary-button">Отправить в Dropbox</button>
         </div>
         <pre id="json-output">{}</pre>
         <div id="dropbox-status" class="status-box" hidden></div>

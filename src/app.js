@@ -43,6 +43,13 @@ function lines(id) {
   return value(id).split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
 }
 
+function findLastIndex(array, predicate) {
+  for (let index = array.length - 1; index >= 0; index -= 1) {
+    if (predicate(array[index], index)) return index;
+  }
+  return -1;
+}
+
 function currentRedirectUri() {
   const path = window.location.pathname.replace(/\/index\.html$/i, "/");
   return `${window.location.origin}${path}`;
@@ -138,7 +145,30 @@ function stripTrailingPriceToken(text) {
   if (/[eEеЕ]$/.test(lastToken) || /^[€$₽]$/.test(lastToken.slice(-1))) {
     return tokens.slice(0, -1).join(" ");
   }
+  if (tokens.length >= 3 && /^\d+([.,]\d{1,2})?$/.test(lastToken)) {
+    return tokens.slice(0, -1).join(" ");
+  }
   return tokens.join(" ");
+}
+
+function isPriceToken(token) {
+  const valueText = String(token || "").trim().replace(/[.,;:!?)\]}]+$/g, "");
+  if (!valueText) return false;
+  return (
+    /^[€$₽]\s?\d+([.,]\d{1,2})?$/i.test(valueText)
+    || /^\d+([.,]\d{1,2})?\s?([€$₽]|eur|rub|usd|р|руб)$/i.test(valueText)
+  );
+}
+
+function isSizeToken(token) {
+  const valueText = String(token || "").trim();
+  if (!valueText) return false;
+  return (
+    /^(xxs|xs|s|m|l|xl|xxl|xxxl)$/i.test(valueText)
+    || /^w?\d{2,3}(l\d{2,3})?$/i.test(valueText)
+    || /^\d{2,3}\/\d{2,3}$/i.test(valueText)
+    || /^[0-9]{1,2}(xs|xl)$/i.test(valueText)
+  );
 }
 
 function stripDuplicatePrefix(text, prefixes) {
@@ -178,9 +208,10 @@ function generatePicNestFilename(source, title, userParams, uniqueSuffix = "") {
   const sourcePart = sanitizeFilenameText(sourceFilenameLabel(source));
   const normalizedTitle = normalizeTitleForFilename(title, source);
   const titlePart = sanitizeFilenameText(normalizedTitle);
-  let cleanedParams = sanitizeFilenameText(
-    stripDuplicatePrefix(stripTrailingPriceToken(userParams), [source, normalizedTitle])
-  );
+  let cleanedParams = sanitizeFilenameText(stripDuplicatePrefix(
+    stripTrailingPriceToken(userParams).split(/\s+/).filter((token) => !isPriceToken(token)).join(" "),
+    [source, normalizedTitle]
+  ));
   if (cleanedParams && titlePart && cleanedParams.toLocaleLowerCase() === titlePart.toLocaleLowerCase()) {
     cleanedParams = "";
   }
@@ -224,7 +255,9 @@ function productLookupPayload(productIdInputId, filenameInputId) {
 }
 
 function extractUrl(text) {
-  return String(text || "").match(/https?:\/\/\S+/i)?.[0] || "";
+  const match = String(text || "").match(/https?:\/\/[^\s]+/i);
+  if (!match) return "";
+  return match[0].replace(/[),.;]+$/g, "");
 }
 
 function inferSourceFromUrl(url) {
@@ -244,11 +277,29 @@ function inferSourceFromUrl(url) {
   return parts[0] || "";
 }
 
+function titleFromUrlSlug(url) {
+  try {
+    const parsed = new URL(url);
+    const segments = parsed.pathname.split("/").map((segment) => segment.trim()).filter(Boolean);
+    const lastSegment = segments[segments.length - 1] || "";
+    const withoutExtension = lastSegment.replace(/\.[a-z0-9]{2,5}$/i, "");
+    const words = withoutExtension
+      .replace(/^p-\d+-?/i, "")
+      .replace(/^\d+-?/, "")
+      .split(/[-_]+/)
+      .filter((part) => part && !/^\d+$/.test(part));
+    const title = words.join(" ").trim();
+    return title ? title.slice(0, 1).toUpperCase() + title.slice(1) : "";
+  } catch {
+    return "";
+  }
+}
+
 function looksLikeParamToken(token) {
   const valueText = String(token || "").trim();
   if (!valueText) return false;
-  if (/^(xxs|xs|s|m|l|xl|xxl|xxxl)$/i.test(valueText)) return true;
-  if (/^w?\d{2,3}(l\d{2,3})?$/i.test(valueText)) return true;
+  if (isSizeToken(valueText)) return true;
+  if (isPriceToken(valueText)) return true;
   if (/^\d{2,3}[,.]?\d{0,2}([€$₽]|eur|rub|usd)?$/i.test(valueText)) return true;
   if (/^[€$₽]$/.test(valueText)) return true;
   return false;
@@ -262,6 +313,20 @@ function splitTitleAndParams(text) {
     return { title: titlePart, userParams: paramParts.join(" ").trim() };
   }
   const tokens = normalized.split(" ");
+
+  const priceIndex = findLastIndex(tokens, (token) => isPriceToken(token));
+  if (priceIndex > 0) {
+    const beforePrice = tokens.slice(0, priceIndex);
+    const sizeIndex = findLastIndex(beforePrice, (token) => isSizeToken(token));
+    if (sizeIndex > 0) {
+      const paramStart = Math.max(0, sizeIndex - 1);
+      return {
+        title: tokens.slice(0, paramStart).join(" ").trim(),
+        userParams: tokens.slice(paramStart).join(" ").trim(),
+      };
+    }
+  }
+
   let paramStart = tokens.length;
   for (let index = tokens.length - 1; index >= 0; index -= 1) {
     if (looksLikeParamToken(tokens[index])) {
@@ -284,13 +349,18 @@ function splitTitleAndParams(text) {
 
 function parseImportInputLine(line) {
   const sourceUrl = extractUrl(line);
-  const rest = String(line || "").replace(sourceUrl, "").trim();
+  const rest = String(line || "")
+    .replace(sourceUrl, "")
+    .replace(/[+|]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   const split = splitTitleAndParams(rest);
+  const fallbackTitle = titleFromUrlSlug(sourceUrl);
   return {
     importInputLine: String(line || "").trim(),
     sourceUrl,
     source: inferSourceFromUrl(sourceUrl),
-    title: split.title,
+    title: split.title || fallbackTitle,
     userParams: split.userParams,
   };
 }
@@ -466,8 +536,12 @@ function commandFileName(command) {
 }
 
 function selectedImagePlan(command) {
+  const roleByKey = {
+    main: "main",
+  };
   return (command.payload.images || []).map((image) => ({
     key: image.image_key,
+    role: roleByKey[image.image_key] || (image.is_primary ? "main" : "дубль"),
     path: image.path || (image.remote_filename ? `images/${image.remote_filename}` : image.url),
     url: image.url || "",
   }));
@@ -477,9 +551,9 @@ function renderFilePlan(command) {
   const filePlan = byId("file-plan");
   const imagePlan = selectedImagePlan(command);
   const rows = [
-    `<div class="file-plan-item"><strong>commands/${commandFileName(command)}</strong><span>JSON команда</span></div>`,
+    `<div class="file-plan-item"><strong>команда</strong><span>commands/${commandFileName(command)}</span></div>`,
     ...imagePlan.map((image) => (
-      `<div class="file-plan-item"><strong>${image.url ? `URL: ${image.url}` : image.path}</strong><span>${image.key}${image.url ? ` -> ${image.path}` : ""}</span></div>`
+      `<div class="file-plan-item"><strong>${image.role}</strong><span>${image.url ? `URL: ${image.url} -> ${image.path}` : image.path}</span></div>`
     )),
   ];
   filePlan.innerHTML = rows.join("");
@@ -555,6 +629,23 @@ function saveDropboxSettings() {
   byId("dropbox-inbox-path").value = normalizeDropboxPath(value("dropbox-inbox-path"));
   updateAuthStatus();
   setStatus("Настройки Dropbox сохранены.");
+}
+
+function clearInput(inputId) {
+  const element = byId(inputId);
+  if (!element) return;
+  element.value = "";
+  render();
+}
+
+function setDropboxCollapsed(collapsed) {
+  byId("dropbox-settings-body").hidden = collapsed;
+  byId("toggle-dropbox-button").textContent = collapsed ? "Развернуть" : "Свернуть";
+  byId("dropbox-card").classList.toggle("collapsed", collapsed);
+}
+
+function toggleDropboxSettings() {
+  setDropboxCollapsed(!byId("dropbox-settings-body").hidden);
 }
 
 async function uploadToDropbox({ token, dropboxPath, blob, contentType }) {
@@ -890,7 +981,7 @@ async function sendCurrentCommandToDropbox() {
       contentType: "application/octet-stream",
     });
     completed.push(commandPath);
-    setStatus(`Готово: ${completed.length}/${total}\nПроверь в Dropbox:\n${commandPath}\n\nВсе отправленные пути:\n${completed.join("\n")}`);
+    setStatus(`Готово: ${completed.length}/${total}\nПроверь в Dropbox:\n${commandPath}\n\nОтправленные файлы:\n${completed.map((path) => `- ${path}`).join("\n")}`);
   } catch (error) {
     setStatus(error instanceof Error ? error.message : String(error), true);
   } finally {
@@ -941,6 +1032,22 @@ function bindEvents() {
   byId("check-dropbox-button").addEventListener("click", () => void checkDropboxConnection());
   byId("disconnect-dropbox-button").addEventListener("click", disconnectDropbox);
   byId("send-dropbox-button").addEventListener("click", () => void sendCurrentCommandToDropbox());
+  byId("toggle-dropbox-button").addEventListener("click", toggleDropboxSettings);
+  byId("dropbox-card").addEventListener("click", (event) => {
+    if (event.target.closest("button, input, select, textarea, label")) return;
+    toggleDropboxSettings();
+  });
+
+  [
+    ["clear-create-main-image", "create-main-image"],
+    ["clear-create-main-image-url", "create-main-image-url"],
+    ["clear-create-duplicate-images", "create-duplicate-images"],
+    ["clear-create-duplicate-image-urls", "create-duplicate-image-urls"],
+    ["clear-add-images", "add-images"],
+    ["clear-add-image-urls", "add-image-urls"],
+  ].forEach(([buttonId, inputId]) => {
+    byId(buttonId).addEventListener("click", () => clearInput(inputId));
+  });
 
   window.addEventListener("beforeinstallprompt", (event) => {
     event.preventDefault();

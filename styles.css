@@ -86,6 +86,32 @@ textarea {
   background: #ffffff;
 }
 
+.card-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.small-button {
+  min-height: 34px;
+  padding: 6px 10px;
+}
+
+.collapsible-card {
+  cursor: pointer;
+}
+
+.collapsible-body {
+  display: grid;
+  gap: 12px;
+  cursor: default;
+}
+
+.collapsible-card.collapsed {
+  padding-bottom: 14px;
+}
+
 .command-form {
   display: none;
 }
@@ -132,8 +158,12 @@ textarea {
 .output-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  justify-content: flex-start;
+}
+
+.json-actions {
+  justify-content: flex-start;
+  margin-top: -4px;
 }
 
 .actions {
@@ -170,6 +200,41 @@ textarea {
 .file-plan-item strong {
   display: block;
   margin-bottom: 4px;
+}
+
+.file-plan-item span {
+  display: block;
+  color: #344054;
+}
+
+.parsed-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.parsed-grid div {
+  display: grid;
+  gap: 3px;
+  padding: 9px 10px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #f8fafc;
+  overflow-wrap: anywhere;
+}
+
+.parsed-grid strong {
+  color: #111827;
+  font-size: 12px;
+}
+
+.parsed-grid span {
+  color: #344054;
+}
+
+.clear-control {
+  justify-self: start;
+  min-height: 34px;
+  padding: 6px 10px;
 }
 
 .status-box {
