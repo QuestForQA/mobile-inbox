@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#111827" />
+    <title>PicNest Mobile Inbox</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="app-header">
+        <div>
+          <h1>PicNest Mobile Inbox</h1>
+          <p>Команды для PicNestInbox</p>
+        </div>
+        <button id="install-button" class="ghost-button" type="button" hidden>Установить</button>
+      </header>
+
+      <nav class="mode-tabs" aria-label="Тип команды">
+        <button class="mode-tab active" type="button" data-mode="create_product">Новый товар</button>
+        <button class="mode-tab" type="button" data-mode="add_images">Картинки</button>
+        <button class="mode-tab" type="button" data-mode="move_status">Статус</button>
+        <button class="mode-tab" type="button" data-mode="update_fields">Поля</button>
+      </nav>
+
+      <section class="card">
+        <h2>Dropbox</h2>
+        <label>
+          <span>Access token</span>
+          <input id="dropbox-token" type="password" autocomplete="off" placeholder="sl..." />
+        </label>
+        <label>
+          <span>Inbox path</span>
+          <input id="dropbox-inbox-path" type="text" value="/ЗП_test/PicNestInbox" autocomplete="off" />
+        </label>
+        <div class="actions">
+          <button id="save-dropbox-settings-button" class="ghost-button" type="button">Сохранить</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="grid two">
+          <label>
+            <span>command_id</span>
+            <input id="command-id" type="text" autocomplete="off" />
+          </label>
+          <label>
+            <span>created_by</span>
+            <input id="created-by" type="text" value="mobile" autocomplete="off" />
+          </label>
+        </div>
+      </section>
+
+      <form id="create-product-form" class="command-form active" data-mode-panel="create_product">
+        <section class="card">
+          <h2>Новый товар</h2>
+          <label>
+            <span>import_input_line</span>
+            <textarea id="create-import-input-line" rows="4" required placeholder="https://site/product Название цвет размер цена"></textarea>
+          </label>
+          <label>
+            <span>title</span>
+            <input id="create-title" type="text" autocomplete="off" placeholder="Заполнится из строки, можно поправить" />
+          </label>
+          <div class="grid two">
+            <label>
+              <span>target_status</span>
+              <select id="create-target-status">
+                <option value="buy">На выкуп</option>
+                <option value="ordered">Едет</option>
+                <option value="arrived">Приехало</option>
+              </select>
+            </label>
+            <label>
+              <span>user_params</span>
+              <input id="create-user-params" type="text" autocomplete="off" placeholder="Заполнится из строки, можно поправить" />
+            </label>
+          </div>
+          <div class="parsed-grid">
+            <div><span>source_url</span><strong id="parsed-source-url">—</strong></div>
+            <div><span>source</span><strong id="parsed-source">—</strong></div>
+            <div><span>filename</span><strong id="parsed-filename">—</strong></div>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>Картинки</h2>
+          <label>
+            <span>Main image</span>
+            <input id="create-main-image" type="file" accept="image/*" />
+          </label>
+          <label>
+            <span>Main image URL</span>
+            <input id="create-main-image-url" type="url" autocomplete="off" placeholder="https://cdn.site/image.jpg" />
+          </label>
+          <label>
+            <span>Duplicate images</span>
+            <input id="create-duplicate-images" type="file" accept="image/*" multiple />
+          </label>
+          <label>
+            <span>Duplicate image URLs</span>
+            <textarea id="create-duplicate-image-urls" rows="3" placeholder="Один URL картинки на строку"></textarea>
+          </label>
+        </section>
+      </form>
+
+      <form id="add-images-form" class="command-form" data-mode-panel="add_images">
+        <section class="card">
+          <h2>Добавить картинки</h2>
+          <label>
+            <span>product_id</span>
+            <input id="add-product-id" type="number" min="1" inputmode="numeric" />
+          </label>
+          <label>
+            <span>main_image_filename</span>
+            <input id="add-main-image-filename" type="text" autocomplete="off" placeholder="Source Title params.jpg" />
+          </label>
+          <label>
+            <span>Duplicate images</span>
+            <input id="add-images" type="file" accept="image/*" multiple />
+          </label>
+          <label>
+            <span>Duplicate image URLs</span>
+            <textarea id="add-image-urls" rows="3" placeholder="Один URL картинки на строку"></textarea>
+          </label>
+        </section>
+      </form>
+
+      <form id="move-status-form" class="command-form" data-mode-panel="move_status">
+        <section class="card">
+          <h2>Изменить статус</h2>
+          <label>
+            <span>product_id</span>
+            <input id="move-product-id" type="number" min="1" inputmode="numeric" />
+          </label>
+          <label>
+            <span>main_image_filename</span>
+            <input id="move-main-image-filename" type="text" autocomplete="off" placeholder="Source Title params.jpg" />
+          </label>
+          <label>
+            <span>to_status</span>
+            <select id="move-to-status">
+              <option value="buy">На выкуп</option>
+              <option value="ordered">Едет</option>
+              <option value="arrived">Приехало</option>
+              <option value="received">Получено</option>
+              <option value="archived">Архив</option>
+              <option value="cancelled">Отмена</option>
+            </select>
+          </label>
+        </section>
+      </form>
+
+      <form id="update-fields-form" class="command-form" data-mode-panel="update_fields">
+        <section class="card">
+          <h2>Изменить поля</h2>
+          <label>
+            <span>product_id</span>
+            <input id="update-product-id" type="number" min="1" inputmode="numeric" />
+          </label>
+          <label>
+            <span>main_image_filename</span>
+            <input id="update-main-image-filename" type="text" autocomplete="off" placeholder="Source Title params.jpg" />
+          </label>
+          <div class="grid two">
+            <label><span>title</span><input id="field-title" type="text" autocomplete="off" /></label>
+            <label><span>source_url</span><input id="field-source-url" type="url" autocomplete="off" /></label>
+            <label><span>source</span><input id="field-source" type="text" autocomplete="off" /></label>
+            <label><span>product_params</span><input id="field-product-params" type="text" autocomplete="off" /></label>
+            <label><span>brand</span><input id="field-brand" type="text" autocomplete="off" /></label>
+            <label><span>brand_line</span><input id="field-brand-line" type="text" autocomplete="off" /></label>
+            <label><span>retailer</span><input id="field-retailer" type="text" autocomplete="off" /></label>
+            <label><span>store_locale</span><input id="field-store-locale" type="text" autocomplete="off" /></label>
+            <label><span>interface_language</span><input id="field-interface-language" type="text" autocomplete="off" /></label>
+            <label><span>store_color_text</span><input id="field-store-color-text" type="text" autocomplete="off" /></label>
+          </div>
+          <label>
+            <span>composition_care_text</span>
+            <textarea id="field-composition-care-text" rows="3"></textarea>
+          </label>
+        </section>
+      </form>
+
+      <section class="card output-card">
+        <div class="output-header">
+          <h2>JSON</h2>
+          <div class="actions">
+            <button id="copy-json-button" type="button" class="ghost-button">Копировать</button>
+            <button id="download-json-button" type="button" class="primary-button">Скачать JSON</button>
+            <button id="send-dropbox-button" type="button" class="primary-button">Отправить в Dropbox</button>
+          </div>
+        </div>
+        <pre id="json-output">{}</pre>
+        <div id="dropbox-status" class="status-box" hidden></div>
+      </section>
+
+      <section class="card">
+        <h2>Файлы</h2>
+        <div id="file-plan" class="file-plan"></div>
+      </section>
+    </main>
+
+    <script type="module" src="./src/app.js"></script>
+  </body>
+</html>
