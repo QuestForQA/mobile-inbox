@@ -152,7 +152,7 @@ function stripTrailingPriceToken(text) {
   if (tokens.length === 0) return "";
   const lastToken = tokens[tokens.length - 1].replace(/[.,;:!?)\]}]+$/g, "");
   if (!lastToken) return tokens.slice(0, -1).join(" ");
-  if (/[eEеЕ]$/.test(lastToken) || /^[€$₽]$/.test(lastToken.slice(-1))) {
+  if (/^\d+([.,]\d{1,2})?[eEеЕ]$/.test(lastToken) || /^[€$₽]$/.test(lastToken.slice(-1))) {
     return tokens.slice(0, -1).join(" ");
   }
   if (tokens.length >= 3 && /^\d+([.,]\d{1,2})?$/.test(lastToken)) {
@@ -172,8 +172,7 @@ function isPriceToken(token) {
 
 function isLoosePriceToken(token) {
   const valueText = String(token || "").trim().replace(/[.,;:!?)\]}]+$/g, "");
-  if (isPriceToken(valueText)) return true;
-  return /^\d{2,6}([.,]\d{1,2})?$/.test(valueText);
+  return isPriceToken(valueText) || /^\d{2,6}([.,]\d{1,2})?$/.test(valueText);
 }
 
 function isSizeToken(token) {
@@ -182,7 +181,6 @@ function isSizeToken(token) {
   return (
     /^(xxs|xs|s|m|l|xl|xxl|xxxl)$/i.test(valueText)
     || /^w?\d{2,3}(l\d{2,3})?$/i.test(valueText)
-    || /^\d{2,3}(it|eu|fr|de|ru)?$/i.test(valueText)
     || /^\d{2,3}\/\d{2,3}$/i.test(valueText)
     || /^[0-9]{1,2}(xs|xl)$/i.test(valueText)
   );
@@ -1058,7 +1056,7 @@ function bindEvents() {
   byId("disconnect-dropbox-button").addEventListener("click", disconnectDropbox);
   byId("send-dropbox-button").addEventListener("click", () => void sendCurrentCommandToDropbox());
   byId("dropbox-card").addEventListener("click", (event) => {
-    if (event.target.closest("button, input, select, textarea, label")) return;
+    if (!event.target.closest(".card-title-row") && event.target !== byId("dropbox-card")) return;
     toggleDropboxSettings();
   });
 
