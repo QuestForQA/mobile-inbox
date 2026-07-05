@@ -238,10 +238,8 @@ textarea {
 }
 
 .dropbox-browser {
-  position: sticky;
-  bottom: 12px;
-  z-index: 10;
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
+  border-color: #bfdbfe;
+  background: #f8fbff;
 }
 
 .browser-header,

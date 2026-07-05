@@ -186,6 +186,7 @@ function isPriceToken(token) {
   if (!valueText) return false;
   return (
     /^[€$₽]\s?\d+([.,]\d{1,2})?$/i.test(valueText)
+    || /^\d+([.,]\d{1,2})?[eEеЕ]$/i.test(valueText)
     || /^\d+([.,]\d{1,2})?\s?([€$₽]|eur|rub|usd|р|руб)$/i.test(valueText)
   );
 }
@@ -204,6 +205,11 @@ function isSizeToken(token) {
     || /^\d{2,3}\/\d{2,3}$/i.test(valueText)
     || /^[0-9]{1,2}(xs|xl)$/i.test(valueText)
   );
+}
+
+function isUppercaseParamWord(token) {
+  const valueText = String(token || "").trim();
+  return valueText.length > 1 && /[A-ZА-ЯЁ]/.test(valueText) && valueText === valueText.toLocaleUpperCase();
 }
 
 function stripDuplicatePrefix(text, prefixes) {
@@ -350,25 +356,31 @@ function splitTitleAndParams(text) {
   }
   const tokens = normalized.split(" ");
 
+  const priceIndex = findLastIndex(tokens, (token) => isLoosePriceToken(token));
+  if (priceIndex > 0) {
+    const beforePrice = tokens.slice(0, priceIndex);
+    const sizeIndex = findLastIndex(beforePrice, (token) => isSizeToken(token));
+    if (sizeIndex > 0) {
+      let paramStart = sizeIndex;
+      while (paramStart > 0 && isUppercaseParamWord(tokens[paramStart - 1])) {
+        paramStart -= 1;
+      }
+      if (paramStart === sizeIndex) {
+        paramStart = Math.max(0, sizeIndex - 1);
+      }
+      return {
+        title: tokens.slice(0, paramStart).join(" ").trim(),
+        userParams: tokens.slice(paramStart).join(" ").trim(),
+      };
+    }
+  }
+
   if (tokens.length >= 4 && isLoosePriceToken(tokens[tokens.length - 1])) {
     const paramStart = Math.max(1, tokens.length - 3);
     return {
       title: stripTrailingPriceToken(tokens.slice(0, paramStart).join(" ")).trim(),
       userParams: tokens.slice(paramStart).join(" ").trim(),
     };
-  }
-
-  const priceIndex = findLastIndex(tokens, (token) => isLoosePriceToken(token));
-  if (priceIndex > 0) {
-    const beforePrice = tokens.slice(0, priceIndex);
-    const sizeIndex = findLastIndex(beforePrice, (token) => isSizeToken(token));
-    if (sizeIndex > 0) {
-      const paramStart = Math.max(0, sizeIndex - 1);
-      return {
-        title: tokens.slice(0, paramStart).join(" ").trim(),
-        userParams: tokens.slice(paramStart).join(" ").trim(),
-      };
-    }
   }
 
   let paramStart = tokens.length;
@@ -951,7 +963,11 @@ function renderBrowserEntries(entries) {
       }
       const filename = button.dataset.name || "";
       if (state.browserTargetInputId && filename) {
-        byId(state.browserTargetInputId).value = filename;
+        const target = byId(state.browserTargetInputId);
+        target.value = filename;
+        target.dispatchEvent(new Event("input", { bubbles: true }));
+        target.dispatchEvent(new Event("change", { bubbles: true }));
+        setStatus(`Выбрана основная картинка: ${filename}`);
         render();
       }
       closeDropboxBrowser();
@@ -1010,6 +1026,7 @@ function openDropboxBrowser(targetInputId) {
 }
 
 function closeDropboxBrowser() {
+  state.browserTargetInputId = "";
   byId("dropbox-browser").hidden = true;
 }
 
@@ -1140,6 +1157,7 @@ async function sendCurrentCommandToDropbox() {
 
 function setMode(mode) {
   state.mode = mode;
+  closeDropboxBrowser();
   document.querySelectorAll(".mode-tab").forEach((tab) => {
     tab.classList.toggle("active", tab.dataset.mode === mode);
   });
@@ -1188,7 +1206,7 @@ function bindEvents() {
     void loadDropboxBrowserPath(parentDropboxPath(state.browserCurrentPath));
   });
   byId("dropbox-card").addEventListener("click", (event) => {
-    if (!event.target.closest(".card-title-row") && event.target !== byId("dropbox-card")) return;
+    if (event.target.closest("button, input, select, textarea, label")) return;
     toggleDropboxSettings();
   });
 
