@@ -13,15 +13,15 @@
       <header class="app-header">
         <div>
           <h1>PicNest Mobile Inbox</h1>
-          <p>Команды для PicNestInbox · v8</p>
+          <p>Команды для PicNestInbox · v9</p>
         </div>
         <button id="install-button" class="ghost-button" type="button" hidden>Установить</button>
       </header>
 
       <nav class="mode-tabs" aria-label="Тип команды">
         <button class="mode-tab active" type="button" data-mode="create_product">Новый товар</button>
-        <button class="mode-tab" type="button" data-mode="add_images">Картинки</button>
         <button class="mode-tab" type="button" data-mode="move_status">Статус</button>
+        <button class="mode-tab" type="button" data-mode="add_images">Картинки</button>
         <button class="mode-tab" type="button" data-mode="update_fields">Поля</button>
       </nav>
 
@@ -137,6 +137,7 @@
             <span>main_image_filename</span>
             <input id="add-main-image-filename" type="text" autocomplete="off" placeholder="Source Title params.jpg" />
           </label>
+          <button class="ghost-button clear-control choose-main-image-button" type="button" data-target-input="add-main-image-filename">Выбрать из Dropbox</button>
           <label>
             <span>Duplicate images</span>
             <input id="add-images" type="file" accept="image/*" multiple />
@@ -161,6 +162,7 @@
             <span>main_image_filename</span>
             <input id="move-main-image-filename" type="text" autocomplete="off" placeholder="Source Title params.jpg" />
           </label>
+          <button class="ghost-button clear-control choose-main-image-button" type="button" data-target-input="move-main-image-filename">Выбрать из Dropbox</button>
           <label>
             <span>to_status</span>
             <select id="move-to-status">
@@ -186,6 +188,7 @@
             <span>main_image_filename</span>
             <input id="update-main-image-filename" type="text" autocomplete="off" placeholder="Source Title params.jpg" />
           </label>
+          <button class="ghost-button clear-control choose-main-image-button" type="button" data-target-input="update-main-image-filename">Выбрать из Dropbox</button>
           <div class="grid two">
             <label><span>title</span><input id="field-title" type="text" autocomplete="off" /></label>
             <label><span>source_url</span><input id="field-source-url" type="url" autocomplete="off" /></label>
@@ -221,6 +224,19 @@
       <section class="card">
         <h2>Файлы</h2>
         <div id="file-plan" class="file-plan"></div>
+      </section>
+
+      <section id="dropbox-browser" class="card dropbox-browser" hidden>
+        <div class="browser-header">
+          <h2>Выбор картинки</h2>
+          <button id="close-dropbox-browser" class="ghost-button small-button" type="button">Закрыть</button>
+        </div>
+        <div class="browser-path-row">
+          <button id="browser-up-button" class="ghost-button small-button" type="button">Вверх</button>
+          <span id="browser-current-path">—</span>
+        </div>
+        <div id="browser-status" class="inline-status">—</div>
+        <div id="browser-list" class="browser-list"></div>
       </section>
     </main>
 

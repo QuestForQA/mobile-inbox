@@ -1,6 +1,8 @@
 const state = {
   mode: "create_product",
   installPrompt: null,
+  browserTargetInputId: "",
+  browserCurrentPath: "",
 };
 
 const DROPBOX_TOKEN_STORAGE_KEY = "picnest-mobile-dropbox-token";
@@ -116,6 +118,24 @@ function joinDropboxPath(root, relativePath) {
   const cleanRoot = normalizeDropboxPath(root);
   const cleanRelative = String(relativePath || "").replace(/^\/+/g, "");
   return `${cleanRoot}/${cleanRelative}`;
+}
+
+function imageBrowserRootPath() {
+  const inboxPath = normalizeDropboxPath(value("dropbox-inbox-path"));
+  return inboxPath.toLocaleLowerCase().includes("зп_test")
+    ? "/ЗП_test/PicNest_NotProtected"
+    : "/ЗП/PicNest_NotProtected";
+}
+
+function parentDropboxPath(path) {
+  const normalized = normalizeDropboxPath(path);
+  const parts = normalized.split("/").filter(Boolean);
+  if (parts.length <= 1) return normalized;
+  return `/${parts.slice(0, -1).join("/")}`;
+}
+
+function isImageFilename(filename) {
+  return /\.(jpg|jpeg|png|webp|gif)$/i.test(String(filename || ""));
 }
 
 function safeFilePart(valueText) {
@@ -887,6 +907,112 @@ async function checkDropboxConnection() {
   }
 }
 
+function setBrowserStatus(message, isError = false) {
+  const element = byId("browser-status");
+  element.textContent = message;
+  element.classList.toggle("error", isError);
+}
+
+function renderBrowserEntries(entries) {
+  const list = byId("browser-list");
+  list.innerHTML = "";
+  if (!entries.length) {
+    list.innerHTML = `<div class="browser-empty">Пусто</div>`;
+    return;
+  }
+
+  const folders = entries
+    .filter((entry) => entry[".tag"] === "folder")
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const images = entries
+    .filter((entry) => entry[".tag"] === "file" && isImageFilename(entry.name))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  [...folders, ...images].forEach((entry) => {
+    const isFolder = entry[".tag"] === "folder";
+    const button = document.createElement("button");
+    button.className = `browser-entry ${isFolder ? "folder" : "file"}`;
+    button.type = "button";
+    button.dataset.path = entry.path_display || entry.path_lower || "";
+    button.dataset.name = entry.name || "";
+    button.dataset.kind = entry[".tag"] || "";
+
+    const kind = document.createElement("strong");
+    kind.textContent = isFolder ? "Папка" : "Картинка";
+    const name = document.createElement("span");
+    name.textContent = entry.name || "";
+    button.append(kind, name);
+
+    button.addEventListener("click", () => {
+      const path = button.dataset.path || "";
+      if (button.dataset.kind === "folder") {
+        void loadDropboxBrowserPath(path);
+        return;
+      }
+      const filename = button.dataset.name || "";
+      if (state.browserTargetInputId && filename) {
+        byId(state.browserTargetInputId).value = filename;
+        render();
+      }
+      closeDropboxBrowser();
+    });
+    list.append(button);
+  });
+}
+
+async function loadDropboxBrowserPath(path) {
+  let token = "";
+  try {
+    token = await getDropboxAccessToken();
+  } catch (error) {
+    setBrowserStatus(error instanceof Error ? error.message : String(error), true);
+    return;
+  }
+
+  state.browserCurrentPath = normalizeDropboxPath(path);
+  byId("browser-current-path").textContent = state.browserCurrentPath;
+  byId("browser-list").innerHTML = "";
+  setBrowserStatus("Загружаю список файлов...");
+
+  try {
+    const entries = [];
+    let result = await dropboxApiRequest({
+      token,
+      endpoint: "files/list_folder",
+      body: {
+        path: state.browserCurrentPath,
+        recursive: false,
+        include_media_info: false,
+        include_deleted: false,
+        include_has_explicit_shared_members: false,
+      },
+    });
+    entries.push(...(result.entries || []));
+    while (result.has_more) {
+      result = await dropboxApiRequest({
+        token,
+        endpoint: "files/list_folder/continue",
+        body: { cursor: result.cursor },
+      });
+      entries.push(...(result.entries || []));
+    }
+    renderBrowserEntries(entries);
+    setBrowserStatus(`Найдено: ${entries.length}`);
+  } catch (error) {
+    setBrowserStatus(error instanceof Error ? error.message : String(error), true);
+  }
+}
+
+function openDropboxBrowser(targetInputId) {
+  state.browserTargetInputId = targetInputId;
+  byId("dropbox-browser").hidden = false;
+  void loadDropboxBrowserPath(imageBrowserRootPath());
+}
+
+function closeDropboxBrowser() {
+  byId("dropbox-browser").hidden = true;
+}
+
 async function waitForDropboxSaveUrl({ token, asyncJobId }) {
   for (let attempt = 0; attempt < 30; attempt += 1) {
     await new Promise((resolve) => setTimeout(resolve, attempt < 5 ? 1000 : 2500));
@@ -1055,9 +1181,19 @@ function bindEvents() {
   byId("check-dropbox-button").addEventListener("click", () => void checkDropboxConnection());
   byId("disconnect-dropbox-button").addEventListener("click", disconnectDropbox);
   byId("send-dropbox-button").addEventListener("click", () => void sendCurrentCommandToDropbox());
+  byId("close-dropbox-browser").addEventListener("click", closeDropboxBrowser);
+  byId("browser-up-button").addEventListener("click", () => {
+    const rootPath = imageBrowserRootPath();
+    if (state.browserCurrentPath === rootPath) return;
+    void loadDropboxBrowserPath(parentDropboxPath(state.browserCurrentPath));
+  });
   byId("dropbox-card").addEventListener("click", (event) => {
     if (!event.target.closest(".card-title-row") && event.target !== byId("dropbox-card")) return;
     toggleDropboxSettings();
+  });
+
+  document.querySelectorAll(".choose-main-image-button").forEach((button) => {
+    button.addEventListener("click", () => openDropboxBrowser(button.dataset.targetInput || ""));
   });
 
   [

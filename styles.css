@@ -237,6 +237,65 @@ textarea {
   padding: 6px 10px;
 }
 
+.dropbox-browser {
+  position: sticky;
+  bottom: 12px;
+  z-index: 10;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
+}
+
+.browser-header,
+.browser-path-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.browser-path-row span {
+  flex: 1;
+  color: #344054;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.browser-list {
+  display: grid;
+  gap: 8px;
+  max-height: 360px;
+  overflow: auto;
+}
+
+.browser-entry {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  min-height: 48px;
+  padding: 10px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #111827;
+  text-align: left;
+}
+
+.browser-entry.folder {
+  background: #f8fafc;
+}
+
+.browser-entry strong {
+  font-size: 12px;
+}
+
+.browser-entry span {
+  overflow-wrap: anywhere;
+}
+
+.browser-empty {
+  padding: 10px;
+  color: #667085;
+}
+
 .status-box {
   padding: 10px 12px;
   border-radius: 8px;
