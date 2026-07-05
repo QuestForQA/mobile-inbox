@@ -5,6 +5,13 @@ const state = {
 
 const DROPBOX_TOKEN_STORAGE_KEY = "picnest-mobile-dropbox-token";
 const DROPBOX_INBOX_PATH_STORAGE_KEY = "picnest-mobile-dropbox-inbox-path";
+const DROPBOX_APP_KEY_STORAGE_KEY = "picnest-mobile-dropbox-app-key";
+const DROPBOX_ACCESS_TOKEN_STORAGE_KEY = "picnest-mobile-dropbox-oauth-access-token";
+const DROPBOX_REFRESH_TOKEN_STORAGE_KEY = "picnest-mobile-dropbox-oauth-refresh-token";
+const DROPBOX_EXPIRES_AT_STORAGE_KEY = "picnest-mobile-dropbox-oauth-expires-at";
+const DROPBOX_PKCE_VERIFIER_STORAGE_KEY = "picnest-mobile-dropbox-pkce-verifier";
+const DROPBOX_OAUTH_STATE_STORAGE_KEY = "picnest-mobile-dropbox-oauth-state";
+const DROPBOX_SCOPES = "files.content.write files.content.read files.metadata.read";
 
 const FIELD_INPUTS = [
   ["title", "field-title"],
@@ -34,6 +41,31 @@ function files(id) {
 
 function lines(id) {
   return value(id).split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+}
+
+function currentRedirectUri() {
+  return `${window.location.origin}${window.location.pathname}`;
+}
+
+function randomUrlSafeString(length = 64) {
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
+  const bytes = new Uint8Array(length);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join("");
+}
+
+function base64UrlEncode(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+async function sha256Base64Url(text) {
+  const buffer = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return base64UrlEncode(buffer);
 }
 
 function compactObject(object) {
@@ -487,15 +519,40 @@ function setStatus(message, isError = false) {
   element.classList.toggle("error", isError);
 }
 
+function setAuthStatus(message, isError = false) {
+  const element = byId("dropbox-auth-status");
+  element.textContent = message;
+  element.classList.toggle("error", isError);
+}
+
+function updateAuthStatus() {
+  const refreshToken = localStorage.getItem(DROPBOX_REFRESH_TOKEN_STORAGE_KEY);
+  const accessToken = localStorage.getItem(DROPBOX_ACCESS_TOKEN_STORAGE_KEY);
+  if (refreshToken) {
+    setAuthStatus("Dropbox подключен через OAuth.");
+    return;
+  }
+  if (accessToken || value("dropbox-token")) {
+    setAuthStatus("Dropbox подключен через access token fallback.");
+    return;
+  }
+  setAuthStatus("Dropbox не подключен.");
+}
+
 function loadDropboxSettings() {
+  byId("dropbox-app-key").value = localStorage.getItem(DROPBOX_APP_KEY_STORAGE_KEY) || "";
   byId("dropbox-token").value = localStorage.getItem(DROPBOX_TOKEN_STORAGE_KEY) || "";
   byId("dropbox-inbox-path").value = localStorage.getItem(DROPBOX_INBOX_PATH_STORAGE_KEY) || "/ЗП_test/PicNestInbox";
+  byId("dropbox-redirect-uri").value = currentRedirectUri();
+  updateAuthStatus();
 }
 
 function saveDropboxSettings() {
+  localStorage.setItem(DROPBOX_APP_KEY_STORAGE_KEY, value("dropbox-app-key"));
   localStorage.setItem(DROPBOX_TOKEN_STORAGE_KEY, value("dropbox-token"));
   localStorage.setItem(DROPBOX_INBOX_PATH_STORAGE_KEY, normalizeDropboxPath(value("dropbox-inbox-path")));
   byId("dropbox-inbox-path").value = normalizeDropboxPath(value("dropbox-inbox-path"));
+  updateAuthStatus();
   setStatus("Настройки Dropbox сохранены.");
 }
 
@@ -537,6 +594,143 @@ async function dropboxJsonRequest({ token, url, body }) {
     throw new Error(`Dropbox request failed ${response.status}: ${text}`);
   }
   return data;
+}
+
+async function dropboxTokenRequest(body) {
+  const response = await fetch("https://api.dropboxapi.com/oauth2/token", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams(body),
+  });
+  const text = await response.text();
+  const data = text ? JSON.parse(text) : {};
+  if (!response.ok) {
+    throw new Error(`Dropbox OAuth failed ${response.status}: ${text}`);
+  }
+  return data;
+}
+
+function storeDropboxTokenResponse(data) {
+  if (data.access_token) {
+    localStorage.setItem(DROPBOX_ACCESS_TOKEN_STORAGE_KEY, data.access_token);
+  }
+  if (data.refresh_token) {
+    localStorage.setItem(DROPBOX_REFRESH_TOKEN_STORAGE_KEY, data.refresh_token);
+  }
+  if (data.expires_in) {
+    localStorage.setItem(
+      DROPBOX_EXPIRES_AT_STORAGE_KEY,
+      String(Date.now() + Math.max(30, Number(data.expires_in) - 60) * 1000)
+    );
+  }
+  updateAuthStatus();
+}
+
+async function startDropboxAuth() {
+  const appKey = value("dropbox-app-key");
+  if (!appKey) {
+    setStatus("Нужен Dropbox App key.", true);
+    return;
+  }
+  saveDropboxSettings();
+  const codeVerifier = randomUrlSafeString(96);
+  const codeChallenge = await sha256Base64Url(codeVerifier);
+  const oauthState = randomUrlSafeString(48);
+  localStorage.setItem(DROPBOX_PKCE_VERIFIER_STORAGE_KEY, codeVerifier);
+  localStorage.setItem(DROPBOX_OAUTH_STATE_STORAGE_KEY, oauthState);
+
+  const params = new URLSearchParams({
+    client_id: appKey,
+    response_type: "code",
+    redirect_uri: currentRedirectUri(),
+    code_challenge: codeChallenge,
+    code_challenge_method: "S256",
+    token_access_type: "offline",
+    scope: DROPBOX_SCOPES,
+    state: oauthState,
+  });
+  window.location.assign(`https://www.dropbox.com/oauth2/authorize?${params.toString()}`);
+}
+
+async function handleDropboxRedirect() {
+  const url = new URL(window.location.href);
+  const error = url.searchParams.get("error");
+  const code = url.searchParams.get("code");
+  if (error) {
+    setStatus(`Dropbox OAuth error: ${error}`, true);
+    window.history.replaceState({}, "", currentRedirectUri());
+    return;
+  }
+  if (!code) return;
+
+  const returnedState = url.searchParams.get("state") || "";
+  const expectedState = localStorage.getItem(DROPBOX_OAUTH_STATE_STORAGE_KEY) || "";
+  if (!returnedState || returnedState !== expectedState) {
+    setStatus("Dropbox OAuth state не совпал. Попробуй войти еще раз.", true);
+    window.history.replaceState({}, "", currentRedirectUri());
+    return;
+  }
+
+  const appKey = localStorage.getItem(DROPBOX_APP_KEY_STORAGE_KEY) || value("dropbox-app-key");
+  const codeVerifier = localStorage.getItem(DROPBOX_PKCE_VERIFIER_STORAGE_KEY) || "";
+  try {
+    const tokenData = await dropboxTokenRequest({
+      grant_type: "authorization_code",
+      code,
+      client_id: appKey,
+      redirect_uri: currentRedirectUri(),
+      code_verifier: codeVerifier,
+    });
+    storeDropboxTokenResponse(tokenData);
+    localStorage.removeItem(DROPBOX_PKCE_VERIFIER_STORAGE_KEY);
+    localStorage.removeItem(DROPBOX_OAUTH_STATE_STORAGE_KEY);
+    setStatus("Dropbox подключен.");
+  } catch (error) {
+    setStatus(error instanceof Error ? error.message : String(error), true);
+  } finally {
+    window.history.replaceState({}, "", currentRedirectUri());
+  }
+}
+
+async function refreshDropboxAccessToken() {
+  const appKey = localStorage.getItem(DROPBOX_APP_KEY_STORAGE_KEY) || value("dropbox-app-key");
+  const refreshToken = localStorage.getItem(DROPBOX_REFRESH_TOKEN_STORAGE_KEY) || "";
+  if (!appKey || !refreshToken) return "";
+  const tokenData = await dropboxTokenRequest({
+    grant_type: "refresh_token",
+    refresh_token: refreshToken,
+    client_id: appKey,
+  });
+  storeDropboxTokenResponse(tokenData);
+  return tokenData.access_token || "";
+}
+
+async function getDropboxAccessToken() {
+  const oauthAccessToken = localStorage.getItem(DROPBOX_ACCESS_TOKEN_STORAGE_KEY) || "";
+  const expiresAt = Number(localStorage.getItem(DROPBOX_EXPIRES_AT_STORAGE_KEY) || "0");
+  if (oauthAccessToken && expiresAt > Date.now() + 30000) {
+    return oauthAccessToken;
+  }
+  const refreshedToken = await refreshDropboxAccessToken();
+  if (refreshedToken) return refreshedToken;
+
+  const fallbackToken = value("dropbox-token");
+  if (fallbackToken) return fallbackToken;
+  throw new Error("Нужно войти в Dropbox или указать access token fallback.");
+}
+
+function disconnectDropbox() {
+  localStorage.removeItem(DROPBOX_ACCESS_TOKEN_STORAGE_KEY);
+  localStorage.removeItem(DROPBOX_REFRESH_TOKEN_STORAGE_KEY);
+  localStorage.removeItem(DROPBOX_EXPIRES_AT_STORAGE_KEY);
+  localStorage.removeItem(DROPBOX_PKCE_VERIFIER_STORAGE_KEY);
+  localStorage.removeItem(DROPBOX_OAUTH_STATE_STORAGE_KEY);
+  byId("dropbox-token").value = "";
+  localStorage.removeItem(DROPBOX_TOKEN_STORAGE_KEY);
+  updateAuthStatus();
+  setStatus("Dropbox отключен.");
 }
 
 async function waitForDropboxSaveUrl({ token, asyncJobId }) {
@@ -609,9 +803,11 @@ function prepareCommandForDropbox(command) {
 }
 
 async function sendCurrentCommandToDropbox() {
-  const token = value("dropbox-token");
-  if (!token) {
-    setStatus("Нужен Dropbox access token.", true);
+  let token = "";
+  try {
+    token = await getDropboxAccessToken();
+  } catch (error) {
+    setStatus(error instanceof Error ? error.message : String(error), true);
     return;
   }
   const inboxPath = normalizeDropboxPath(value("dropbox-inbox-path"));
@@ -701,6 +897,8 @@ function bindEvents() {
   });
 
   byId("save-dropbox-settings-button").addEventListener("click", saveDropboxSettings);
+  byId("connect-dropbox-button").addEventListener("click", () => void startDropboxAuth());
+  byId("disconnect-dropbox-button").addEventListener("click", disconnectDropbox);
   byId("send-dropbox-button").addEventListener("click", () => void sendCurrentCommandToDropbox());
 
   window.addEventListener("beforeinstallprompt", (event) => {
@@ -719,6 +917,7 @@ function bindEvents() {
 
 loadDropboxSettings();
 bindEvents();
+void handleDropboxRedirect();
 resetCommandId();
 render();
 

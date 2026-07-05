@@ -28,14 +28,25 @@
       <section class="card">
         <h2>Dropbox</h2>
         <label>
-          <span>Access token</span>
+          <span>App key</span>
+          <input id="dropbox-app-key" type="text" autocomplete="off" placeholder="Dropbox app key" />
+        </label>
+        <label>
+          <span>Redirect URI</span>
+          <input id="dropbox-redirect-uri" type="text" readonly />
+        </label>
+        <label>
+          <span>Access token fallback</span>
           <input id="dropbox-token" type="password" autocomplete="off" placeholder="sl..." />
         </label>
         <label>
           <span>Inbox path</span>
           <input id="dropbox-inbox-path" type="text" value="/ЗП_test/PicNestInbox" autocomplete="off" />
         </label>
+        <div id="dropbox-auth-status" class="inline-status">Dropbox не подключен.</div>
         <div class="actions">
+          <button id="connect-dropbox-button" class="primary-button" type="button">Войти в Dropbox</button>
+          <button id="disconnect-dropbox-button" class="ghost-button" type="button">Выйти</button>
           <button id="save-dropbox-settings-button" class="ghost-button" type="button">Сохранить</button>
         </div>
       </section>

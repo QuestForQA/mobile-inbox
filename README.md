@@ -62,8 +62,10 @@ MVP умеет отправлять данные напрямую в Dropbox:
 
 В настройках клиента нужно указать:
 
-- Dropbox access token;
+- Dropbox App key и войти через OAuth;
 - Inbox path, например `/ЗП_test/PicNestInbox`.
+
+Access token fallback можно использовать для ручной отладки, но основной сценарий - кнопка `Войти в Dropbox`. После входа refresh token хранится локально в браузере/PWA телефона и не попадает в GitHub repository.
 
 Для прода можно заменить путь на `/ЗП/PicNestInbox`.
 

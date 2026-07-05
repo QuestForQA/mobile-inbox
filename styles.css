@@ -188,6 +188,20 @@ textarea {
   color: #991b1b;
 }
 
+.inline-status {
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #344054;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.inline-status.error {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
 @media (max-width: 560px) {
   .app-shell {
     padding: 12px;

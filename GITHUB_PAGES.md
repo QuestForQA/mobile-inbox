@@ -49,11 +49,39 @@ Android:
 
 В приложении на телефоне указать:
 
-- Dropbox access token;
+- Dropbox App key;
 - Inbox path для теста: `/ЗП_test/PicNestInbox`;
 - Inbox path для прода: `/ЗП/PicNestInbox`.
 
-Token хранится локально в браузере телефона. В GitHub repository его добавлять нельзя.
+После этого нажать `Войти в Dropbox` и разрешить доступ.
+
+## Dropbox App для OAuth
+
+В Dropbox нужно один раз создать app:
+
+1. Открыть https://www.dropbox.com/developers/apps.
+2. Нажать `Create app`.
+3. API: `Scoped access`.
+4. Access type: `Full Dropbox`.
+5. Название, например `PicNest Mobile Inbox`.
+6. Нажать `Create app`.
+7. Во вкладке `Permissions` включить:
+   - `files.content.write`;
+   - `files.content.read`;
+   - `files.metadata.read`.
+8. Сохранить permissions.
+9. Во вкладке `Settings` скопировать `App key`.
+10. В блоке OAuth добавить `Redirect URI`.
+
+Redirect URI должен совпадать с адресом PWA без query-параметров. Пример:
+
+```text
+https://<github-login>.github.io/picnest-mobile-inbox/
+```
+
+Этот же адрес показывается внутри PWA в поле `Redirect URI`.
+
+В GitHub repository нельзя добавлять access token, refresh token или app secret. App key добавлять можно: это публичный идентификатор приложения.
 
 ## Как обновлять
 
