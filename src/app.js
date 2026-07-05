@@ -44,7 +44,8 @@ function lines(id) {
 }
 
 function currentRedirectUri() {
-  return `${window.location.origin}${window.location.pathname}`;
+  const path = window.location.pathname.replace(/\/index\.html$/i, "/");
+  return `${window.location.origin}${path}`;
 }
 
 function randomUrlSafeString(length = 64) {
@@ -596,6 +597,14 @@ async function dropboxJsonRequest({ token, url, body }) {
   return data;
 }
 
+async function dropboxApiRequest({ token, endpoint, body }) {
+  return dropboxJsonRequest({
+    token,
+    url: `https://api.dropboxapi.com/2/${endpoint}`,
+    body,
+  });
+}
+
 async function dropboxTokenRequest(body) {
   const response = await fetch("https://api.dropboxapi.com/oauth2/token", {
     method: "POST",
@@ -733,6 +742,37 @@ function disconnectDropbox() {
   setStatus("Dropbox отключен.");
 }
 
+async function checkDropboxConnection() {
+  let token = "";
+  try {
+    token = await getDropboxAccessToken();
+  } catch (error) {
+    setStatus(error instanceof Error ? error.message : String(error), true);
+    return;
+  }
+
+  const inboxPath = normalizeDropboxPath(value("dropbox-inbox-path"));
+  try {
+    const account = await dropboxApiRequest({
+      token,
+      endpoint: "users/get_current_account",
+      body: null,
+    });
+    const metadata = await dropboxApiRequest({
+      token,
+      endpoint: "files/get_metadata",
+      body: { path: inboxPath },
+    });
+    setStatus([
+      "Dropbox доступен.",
+      `Аккаунт: ${account.email || account.name?.display_name || "—"}`,
+      `Inbox path: ${metadata.path_display || inboxPath}`,
+    ].join("\n"));
+  } catch (error) {
+    setStatus(error instanceof Error ? error.message : String(error), true);
+  }
+}
+
 async function waitForDropboxSaveUrl({ token, asyncJobId }) {
   for (let attempt = 0; attempt < 30; attempt += 1) {
     await new Promise((resolve) => setTimeout(resolve, attempt < 5 ? 1000 : 2500));
@@ -750,9 +790,9 @@ async function waitForDropboxSaveUrl({ token, asyncJobId }) {
 }
 
 async function saveUrlToDropbox({ token, dropboxPath, imageUrl }) {
-  const result = await dropboxJsonRequest({
+  const result = await dropboxApiRequest({
     token,
-    url: "https://api.dropboxapi.com/2/files/save_url",
+    endpoint: "files/save_url",
     body: {
       path: dropboxPath,
       url: imageUrl,
@@ -850,7 +890,7 @@ async function sendCurrentCommandToDropbox() {
       contentType: "application/octet-stream",
     });
     completed.push(commandPath);
-    setStatus(`Готово: ${completed.length}/${total}\n${completed.join("\n")}`);
+    setStatus(`Готово: ${completed.length}/${total}\nПроверь в Dropbox:\n${commandPath}\n\nВсе отправленные пути:\n${completed.join("\n")}`);
   } catch (error) {
     setStatus(error instanceof Error ? error.message : String(error), true);
   } finally {
@@ -898,6 +938,7 @@ function bindEvents() {
 
   byId("save-dropbox-settings-button").addEventListener("click", saveDropboxSettings);
   byId("connect-dropbox-button").addEventListener("click", () => void startDropboxAuth());
+  byId("check-dropbox-button").addEventListener("click", () => void checkDropboxConnection());
   byId("disconnect-dropbox-button").addEventListener("click", disconnectDropbox);
   byId("send-dropbox-button").addEventListener("click", () => void sendCurrentCommandToDropbox());
 

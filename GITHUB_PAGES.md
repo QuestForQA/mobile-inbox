@@ -73,13 +73,21 @@ Android:
 9. Во вкладке `Settings` скопировать `App key`.
 10. В блоке OAuth добавить `Redirect URI`.
 
-Redirect URI должен совпадать с адресом PWA без query-параметров. Пример:
+Redirect URI должен совпадать с адресом PWA без query-параметров. В PWA этот адрес показан в поле `Redirect URI`.
+
+Пример для repository `picnest-mobile-inbox`:
 
 ```text
 https://<github-login>.github.io/picnest-mobile-inbox/
 ```
 
-Этот же адрес показывается внутри PWA в поле `Redirect URI`.
+Пример для repository `mobile-inbox`:
+
+```text
+https://<github-login>.github.io/mobile-inbox/
+```
+
+`/index.html` в Dropbox Redirect URI добавлять не нужно: PWA использует канонический адрес папки с завершающим `/`.
 
 В GitHub repository нельзя добавлять access token, refresh token или app secret. App key добавлять можно: это публичный идентификатор приложения.
 
