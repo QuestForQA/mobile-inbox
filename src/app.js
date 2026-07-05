@@ -1021,7 +1021,13 @@ async function loadDropboxBrowserPath(path) {
 
 function openDropboxBrowser(targetInputId) {
   state.browserTargetInputId = targetInputId;
-  byId("dropbox-browser").hidden = false;
+  const browser = byId("dropbox-browser");
+  const trigger = document.querySelector(`.choose-main-image-button[data-target-input="${targetInputId}"]`);
+  if (trigger) {
+    trigger.insertAdjacentElement("afterend", browser);
+  }
+  browser.hidden = false;
+  browser.scrollIntoView({ block: "nearest" });
   void loadDropboxBrowserPath(imageBrowserRootPath());
 }
 
@@ -1180,7 +1186,7 @@ function bindEvents() {
 
   byId("create-import-input-line").addEventListener("input", () => {
     const parsed = parseImportInputLine(value("create-import-input-line"));
-    byId("create-title").value = parsed.title;
+    byId("create-title").value = stripTrailingPriceToken(parsed.title);
     byId("create-user-params").value = parsed.userParams;
     render();
   });
@@ -1199,7 +1205,7 @@ function bindEvents() {
   byId("check-dropbox-button").addEventListener("click", () => void checkDropboxConnection());
   byId("disconnect-dropbox-button").addEventListener("click", disconnectDropbox);
   byId("send-dropbox-button").addEventListener("click", () => void sendCurrentCommandToDropbox());
-  byId("close-dropbox-browser").addEventListener("click", closeDropboxBrowser);
+  byId("close-dropbox-browser").onclick = closeDropboxBrowser;
   byId("browser-up-button").addEventListener("click", () => {
     const rootPath = imageBrowserRootPath();
     if (state.browserCurrentPath === rootPath) return;
@@ -1207,7 +1213,9 @@ function bindEvents() {
   });
   byId("dropbox-card").addEventListener("click", (event) => {
     if (event.target.closest("button, input, select, textarea, label")) return;
-    toggleDropboxSettings();
+    if (event.target.closest("summary")) return;
+    const card = byId("dropbox-card");
+    card.open = !card.open;
   });
 
   document.querySelectorAll(".choose-main-image-button").forEach((button) => {

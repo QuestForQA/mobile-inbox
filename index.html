@@ -13,7 +13,7 @@
       <header class="app-header">
         <div>
           <h1>PicNest Mobile Inbox</h1>
-          <p>Команды для PicNestInbox · v10</p>
+          <p>Команды для PicNestInbox · v11</p>
         </div>
         <button id="install-button" class="ghost-button" type="button" hidden>Установить</button>
       </header>
@@ -25,10 +25,10 @@
         <button class="mode-tab" type="button" data-mode="update_fields">Поля</button>
       </nav>
 
-      <section id="dropbox-card" class="card collapsible-card">
-        <div class="card-title-row">
+      <details id="dropbox-card" class="card dropbox-card" open>
+        <summary class="card-title-row">
           <h2>Dropbox</h2>
-        </div>
+        </summary>
         <div id="dropbox-settings-body" class="collapsible-body">
           <label>
             <span>App key</span>
@@ -54,7 +54,7 @@
             <button id="save-dropbox-settings-button" class="ghost-button" type="button">Сохранить</button>
           </div>
         </div>
-      </section>
+      </details>
 
       <section class="card">
         <div class="grid two">

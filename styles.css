@@ -98,18 +98,22 @@ textarea {
   padding: 6px 10px;
 }
 
-.collapsible-card {
+.dropbox-card {
   cursor: pointer;
+}
+
+.dropbox-card summary {
+  list-style: none;
+}
+
+.dropbox-card summary::-webkit-details-marker {
+  display: none;
 }
 
 .collapsible-body {
   display: grid;
   gap: 12px;
   cursor: default;
-}
-
-.collapsible-card.collapsed {
-  padding-bottom: 14px;
 }
 
 .command-form {
@@ -229,8 +233,6 @@ textarea {
 
 .parsed-grid span {
   color: #344054;
-}
-
 .clear-control {
   justify-self: start;
   min-height: 34px;
