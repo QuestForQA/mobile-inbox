@@ -137,6 +137,16 @@ function sanitizeFilenameText(text) {
   return cleaned.slice(0, 120) || "Untitled";
 }
 
+function sanitizeFilenamePart(text) {
+  const cleaned = String(text || "")
+    .trim()
+    .replace(/[^\p{L}\p{N}\s-]/gu, " ")
+    .replace(/_+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return cleaned.slice(0, 120);
+}
+
 function stripTrailingPriceToken(text) {
   const tokens = String(text || "").trim().split(/\s+/).filter(Boolean);
   if (tokens.length === 0) return "";
@@ -160,12 +170,19 @@ function isPriceToken(token) {
   );
 }
 
+function isLoosePriceToken(token) {
+  const valueText = String(token || "").trim().replace(/[.,;:!?)\]}]+$/g, "");
+  if (isPriceToken(valueText)) return true;
+  return /^\d{2,6}([.,]\d{1,2})?$/.test(valueText);
+}
+
 function isSizeToken(token) {
   const valueText = String(token || "").trim();
   if (!valueText) return false;
   return (
     /^(xxs|xs|s|m|l|xl|xxl|xxxl)$/i.test(valueText)
     || /^w?\d{2,3}(l\d{2,3})?$/i.test(valueText)
+    || /^\d{2,3}(it|eu|fr|de|ru)?$/i.test(valueText)
     || /^\d{2,3}\/\d{2,3}$/i.test(valueText)
     || /^[0-9]{1,2}(xs|xl)$/i.test(valueText)
   );
@@ -207,11 +224,12 @@ function sourceFilenameLabel(source) {
 function generatePicNestFilename(source, title, userParams, uniqueSuffix = "") {
   const sourcePart = sanitizeFilenameText(sourceFilenameLabel(source));
   const normalizedTitle = normalizeTitleForFilename(title, source);
-  const titlePart = sanitizeFilenameText(normalizedTitle);
+  const titlePart = sanitizeFilenamePart(stripTrailingPriceToken(normalizedTitle));
   let cleanedParams = sanitizeFilenameText(stripDuplicatePrefix(
-    stripTrailingPriceToken(userParams).split(/\s+/).filter((token) => !isPriceToken(token)).join(" "),
+    stripTrailingPriceToken(userParams).split(/\s+/).filter((token) => !isLoosePriceToken(token)).join(" "),
     [source, normalizedTitle]
   ));
+  if (cleanedParams === "Untitled") cleanedParams = "";
   if (cleanedParams && titlePart && cleanedParams.toLocaleLowerCase() === titlePart.toLocaleLowerCase()) {
     cleanedParams = "";
   }
@@ -314,7 +332,15 @@ function splitTitleAndParams(text) {
   }
   const tokens = normalized.split(" ");
 
-  const priceIndex = findLastIndex(tokens, (token) => isPriceToken(token));
+  if (tokens.length >= 4 && isLoosePriceToken(tokens[tokens.length - 1])) {
+    const paramStart = Math.max(1, tokens.length - 3);
+    return {
+      title: stripTrailingPriceToken(tokens.slice(0, paramStart).join(" ")).trim(),
+      userParams: tokens.slice(paramStart).join(" ").trim(),
+    };
+  }
+
+  const priceIndex = findLastIndex(tokens, (token) => isLoosePriceToken(token));
   if (priceIndex > 0) {
     const beforePrice = tokens.slice(0, priceIndex);
     const sizeIndex = findLastIndex(beforePrice, (token) => isSizeToken(token));
@@ -378,7 +404,7 @@ function commandEnvelope(type, payload) {
 
 function buildCreateProduct() {
   const parsed = parseImportInputLine(value("create-import-input-line"));
-  const title = value("create-title") || parsed.title;
+  const title = stripTrailingPriceToken(value("create-title") || parsed.title);
   const userParams = value("create-user-params") || parsed.userParams;
   const filename = generatePicNestFilename(parsed.source, title, userParams);
   const mainImage = files("create-main-image")[0] || null;
@@ -640,7 +666,6 @@ function clearInput(inputId) {
 
 function setDropboxCollapsed(collapsed) {
   byId("dropbox-settings-body").hidden = collapsed;
-  byId("toggle-dropbox-button").textContent = collapsed ? "Развернуть" : "Свернуть";
   byId("dropbox-card").classList.toggle("collapsed", collapsed);
 }
 
@@ -1032,7 +1057,6 @@ function bindEvents() {
   byId("check-dropbox-button").addEventListener("click", () => void checkDropboxConnection());
   byId("disconnect-dropbox-button").addEventListener("click", disconnectDropbox);
   byId("send-dropbox-button").addEventListener("click", () => void sendCurrentCommandToDropbox());
-  byId("toggle-dropbox-button").addEventListener("click", toggleDropboxSettings);
   byId("dropbox-card").addEventListener("click", (event) => {
     if (event.target.closest("button, input, select, textarea, label")) return;
     toggleDropboxSettings();
