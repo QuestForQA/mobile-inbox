@@ -13,7 +13,7 @@
       <header class="app-header">
         <div>
           <h1>PicNest Mobile Inbox</h1>
-          <p>Команды для PicNestInbox · v27</p>
+          <p>Команды для PicNestInbox · v29</p>
         </div>
         <button id="install-button" class="ghost-button" type="button" hidden>Установить</button>
       </header>
@@ -101,30 +101,58 @@
             <div><strong>source</strong><span id="parsed-source">—</span></div>
             <div><strong>filename</strong><span id="parsed-filename">—</span></div>
           </div>
+          <section id="create-batch-products-panel" class="batch-products-panel" hidden>
+            <div id="create-batch-product-tabs" class="batch-product-tabs"></div>
+            <div id="create-batch-product-details" class="batch-product-details"></div>
+          </section>
         </section>
 
         <section class="card">
           <h2>Картинки</h2>
           <label>
+            <span>Main image source</span>
+            <select id="create-main-image-source">
+              <option value="phone">С телефона</option>
+              <option value="dropbox">Из Dropbox</option>
+              <option value="url">URL</option>
+            </select>
+          </label>
+          <label data-main-image-source-panel="phone">
             <span>Main image</span>
             <input id="create-main-image" type="file" accept="image/*" />
           </label>
-          <button id="clear-create-main-image" class="ghost-button clear-control" type="button">Удалить файл</button>
-          <label>
+          <button id="clear-create-main-image" class="ghost-button clear-control" data-main-image-source-panel="phone" type="button">Удалить файл</button>
+          <label data-main-image-source-panel="dropbox">
+            <span>Main image from Dropbox</span>
+            <textarea id="create-main-image-dropbox" rows="3" autocomplete="off" placeholder="Для списка: один файл на строку из PicNestInbox/images"></textarea>
+          </label>
+          <label data-main-image-source-panel="url">
             <span>Main image URL</span>
             <textarea id="create-main-image-url" rows="3" autocomplete="off" placeholder="Для списка товаров: один URL картинки на строку"></textarea>
           </label>
-          <button id="clear-create-main-image-url" class="ghost-button clear-control" type="button">Удалить URL</button>
+          <button id="clear-create-main-image-url" class="ghost-button clear-control" data-main-image-source-panel="url" type="button">Удалить URL</button>
           <label>
+            <span>Duplicate image source</span>
+            <select id="create-duplicate-image-source">
+              <option value="phone">С телефона</option>
+              <option value="dropbox">Из Dropbox</option>
+              <option value="url">URL</option>
+            </select>
+          </label>
+          <label data-duplicate-image-source-panel="phone">
             <span>Duplicate images</span>
             <input id="create-duplicate-images" type="file" accept="image/*" multiple />
           </label>
-          <button id="clear-create-duplicate-images" class="ghost-button clear-control" type="button">Удалить файлы</button>
-          <label>
+          <button id="clear-create-duplicate-images" class="ghost-button clear-control" data-duplicate-image-source-panel="phone" type="button">Удалить файлы</button>
+          <label data-duplicate-image-source-panel="dropbox">
+            <span>Duplicate images from Dropbox</span>
+            <textarea id="create-duplicate-image-dropbox" rows="3" placeholder="Для списка: одна строка на товар; несколько файлов через ;"></textarea>
+          </label>
+          <label data-duplicate-image-source-panel="url">
             <span>Duplicate image URLs</span>
             <textarea id="create-duplicate-image-urls" rows="3" placeholder="Один URL картинки на строку"></textarea>
           </label>
-          <button id="clear-create-duplicate-image-urls" class="ghost-button clear-control" type="button">Удалить URL</button>
+          <button id="clear-create-duplicate-image-urls" class="ghost-button clear-control" data-duplicate-image-source-panel="url" type="button">Удалить URL</button>
         </section>
       </form>
 

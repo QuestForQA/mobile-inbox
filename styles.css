@@ -268,6 +268,58 @@ textarea {
   color: #344054;
 }
 
+.batch-products-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.batch-product-tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.batch-product-tab {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 7px 11px;
+  border: 1px solid #d0d5dd;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #344054;
+}
+
+.batch-product-tab.active {
+  border-color: #111827;
+  background: #111827;
+  color: #ffffff;
+}
+
+.batch-product-details {
+  display: grid;
+  gap: 8px;
+}
+
+.batch-product-details div {
+  display: grid;
+  gap: 3px;
+  padding: 9px 10px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #f8fafc;
+  overflow-wrap: anywhere;
+}
+
+.batch-product-details strong {
+  color: #111827;
+  font-size: 12px;
+}
+
+.batch-product-details span {
+  color: #344054;
+}
+
 [hidden] {
   display: none !important;
 }

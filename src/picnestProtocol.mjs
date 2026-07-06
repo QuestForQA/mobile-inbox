@@ -317,8 +317,9 @@ export function splitTitleAndParams(text) {
 }
 
 export function parseImportInputLine(line) {
-  const sourceUrl = extractUrl(line);
-  const rest = String(line || "")
+  const cleanLine = stripImportListMarker(line);
+  const sourceUrl = extractUrl(cleanLine);
+  const rest = cleanLine
     .replace(sourceUrl, "")
     .replace(/[+|]+/g, " ")
     .replace(/\s+/g, " ")
@@ -326,10 +327,17 @@ export function parseImportInputLine(line) {
   const split = splitTitleAndParams(rest);
   const fallbackTitle = titleFromUrlSlug(sourceUrl);
   return {
-    importInputLine: String(line || "").trim(),
+    importInputLine: cleanLine,
     sourceUrl,
     source: inferSourceFromUrl(sourceUrl),
     title: titleWithParamsWithoutPrice(split.title || fallbackTitle, split.userParams),
     userParams: split.userParams,
   };
+}
+
+export function stripImportListMarker(line) {
+  return String(line || "")
+    .trim()
+    .replace(/^\s*\d+[\).:-]\s+/, "")
+    .trim();
 }
