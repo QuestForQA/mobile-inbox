@@ -234,6 +234,16 @@ textarea {
   color: #344054;
 }
 
+.file-plan-warning {
+  border-color: #fedf89;
+  background: #fffaeb;
+}
+
+.file-plan-warning strong,
+.file-plan-warning span {
+  color: #93370d;
+}
+
 .parsed-grid {
   display: grid;
   gap: 8px;
