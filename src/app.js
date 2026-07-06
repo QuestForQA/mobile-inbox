@@ -121,11 +121,24 @@ function joinDropboxPath(root, relativePath) {
   return `${cleanRoot}/${cleanRelative}`;
 }
 
-function imageBrowserRootPath() {
+function productsRootPath() {
   const inboxPath = normalizeDropboxPath(value("dropbox-inbox-path"));
   return inboxPath.toLocaleLowerCase().includes("зп_test")
     ? "/ЗП_test"
     : "/ЗП";
+}
+
+function statusBrowserRootPath() {
+  return joinDropboxPath(productsRootPath(), "PicNest_NotProtected");
+}
+
+function clampDropboxPathToRoot(path, rootPath) {
+  const normalizedPath = normalizeDropboxPath(path);
+  const normalizedRoot = normalizeDropboxPath(rootPath);
+  const lowerPath = normalizedPath.toLocaleLowerCase();
+  const lowerRoot = normalizedRoot.toLocaleLowerCase();
+  if (lowerPath === lowerRoot || lowerPath.startsWith(`${lowerRoot}/`)) return normalizedPath;
+  return normalizedRoot;
 }
 
 function parentDropboxPath(path) {
@@ -1007,13 +1020,14 @@ function renderBrowserEntries(entries) {
     button.dataset.name = entry.name || "";
     button.dataset.kind = entry[".tag"] || "";
 
+    if (isFolder) {
+      const icon = document.createElement("span");
+      icon.className = "folder-icon";
+      icon.setAttribute("aria-hidden", "true");
+      button.append(icon);
+    }
     const name = document.createElement("span");
     name.textContent = entry.name || "";
-    if (isFolder) {
-      const kind = document.createElement("strong");
-      kind.textContent = "Папка";
-      button.append(kind);
-    }
     button.append(name);
 
     button.addEventListener("click", () => {
@@ -1046,7 +1060,7 @@ async function loadDropboxBrowserPath(path) {
     return;
   }
 
-  state.browserCurrentPath = normalizeDropboxPath(path);
+  state.browserCurrentPath = clampDropboxPathToRoot(path, statusBrowserRootPath());
   byId("browser-current-path").textContent = state.browserCurrentPath;
   byId("browser-list").innerHTML = "";
   setBrowserStatus("Загружаю список файлов...");
@@ -1066,7 +1080,7 @@ function openDropboxBrowser(targetInputId) {
   const browser = byId("dropbox-browser");
   browser.hidden = false;
   browser.scrollIntoView({ block: "nearest" });
-  void loadDropboxBrowserPath(imageBrowserRootPath());
+  void loadDropboxBrowserPath(statusBrowserRootPath());
 }
 
 function closeDropboxBrowser() {
@@ -1108,11 +1122,12 @@ function renderProductsEntries(entries, token) {
       button.dataset.path = entry.path_display || entry.path_lower || "";
       button.dataset.name = entry.name || "";
 
-      const kind = document.createElement("strong");
-      kind.textContent = "Папка";
+      const icon = document.createElement("span");
+      icon.className = "folder-icon";
+      icon.setAttribute("aria-hidden", "true");
       const name = document.createElement("span");
       name.textContent = entry.name || "";
-      button.append(kind, name);
+      button.append(icon, name);
 
       button.addEventListener("click", () => {
         void loadProductsPath(button.dataset.path || "");
@@ -1167,7 +1182,7 @@ function renderProductsEntries(entries, token) {
 }
 
 async function loadProductsPath(path = "") {
-  const nextPath = path ? normalizeDropboxPath(path) : imageBrowserRootPath();
+  const nextPath = path ? normalizeDropboxPath(path) : productsRootPath();
   state.productsCurrentPath = nextPath;
   byId("products-current-path").textContent = nextPath;
   byId("products-list").innerHTML = "";
@@ -1324,7 +1339,7 @@ function setMode(mode) {
     element.hidden = mode === "products";
   });
   if (mode === "products") {
-    void loadProductsPath(imageBrowserRootPath());
+    void loadProductsPath(productsRootPath());
     return;
   }
   resetCommandId();
@@ -1364,17 +1379,17 @@ function bindEvents() {
   byId("send-dropbox-button").addEventListener("click", () => void sendCurrentCommandToDropbox());
   byId("close-dropbox-browser").onclick = closeDropboxBrowser;
   byId("browser-up-button").addEventListener("click", () => {
-    const rootPath = imageBrowserRootPath();
+    const rootPath = statusBrowserRootPath();
     if (state.browserCurrentPath === rootPath) return;
-    void loadDropboxBrowserPath(parentDropboxPath(state.browserCurrentPath));
+    void loadDropboxBrowserPath(clampDropboxPathToRoot(parentDropboxPath(state.browserCurrentPath), rootPath));
   });
   byId("products-up-button").addEventListener("click", () => {
-    const rootPath = imageBrowserRootPath();
+    const rootPath = productsRootPath();
     if (!state.productsCurrentPath || state.productsCurrentPath === rootPath) return;
     void loadProductsPath(parentDropboxPath(state.productsCurrentPath));
   });
   byId("products-refresh-button").addEventListener("click", () => {
-    void loadProductsPath(state.productsCurrentPath || imageBrowserRootPath());
+    void loadProductsPath(state.productsCurrentPath || productsRootPath());
   });
 
   document.querySelectorAll(".choose-main-image-button").forEach((button) => {
