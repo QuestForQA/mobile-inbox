@@ -13,7 +13,7 @@
       <header class="app-header">
         <div>
           <h1>PicNest Mobile Inbox</h1>
-          <p>Команды для PicNestInbox · v11</p>
+          <p>Команды для PicNestInbox · v12</p>
         </div>
         <button id="install-button" class="ghost-button" type="button" hidden>Установить</button>
       </header>
@@ -27,7 +27,8 @@
 
       <details id="dropbox-card" class="card dropbox-card" open>
         <summary class="card-title-row">
-          <h2>Dropbox</h2>
+          <h2>Dropbox settings</h2>
+          <span class="details-chevron" aria-hidden="true"></span>
         </summary>
         <div id="dropbox-settings-body" class="collapsible-body">
           <label>
@@ -137,7 +138,6 @@
             <span>main_image_filename</span>
             <input id="add-main-image-filename" type="text" autocomplete="off" placeholder="Source Title params.jpg" />
           </label>
-          <button class="ghost-button clear-control choose-main-image-button" type="button" data-target-input="add-main-image-filename">Выбрать из Dropbox</button>
           <label>
             <span>Duplicate images</span>
             <input id="add-images" type="file" accept="image/*" multiple />
@@ -162,7 +162,22 @@
             <span>main_image_filename</span>
             <input id="move-main-image-filename" type="text" autocomplete="off" placeholder="Source Title params.jpg" />
           </label>
-          <button class="ghost-button clear-control choose-main-image-button" type="button" data-target-input="move-main-image-filename">Выбрать из Dropbox</button>
+          <div class="actions">
+            <button class="ghost-button clear-control choose-main-image-button" type="button" data-target-input="move-main-image-filename">Выбрать из Dropbox</button>
+            <button id="clear-move-main-image-filename" class="ghost-button clear-control" type="button">Удалить файл</button>
+          </div>
+          <section id="dropbox-browser" class="card dropbox-browser" hidden>
+            <div class="browser-header">
+              <h2>Выбор картинки</h2>
+              <button id="close-dropbox-browser" class="ghost-button small-button" type="button">Закрыть</button>
+            </div>
+            <div class="browser-path-row">
+              <button id="browser-up-button" class="ghost-button small-button" type="button">Вверх</button>
+              <span id="browser-current-path">—</span>
+            </div>
+            <div id="browser-status" class="inline-status">—</div>
+            <div id="browser-list" class="browser-list"></div>
+          </section>
           <label>
             <span>to_status</span>
             <select id="move-to-status">
@@ -188,7 +203,6 @@
             <span>main_image_filename</span>
             <input id="update-main-image-filename" type="text" autocomplete="off" placeholder="Source Title params.jpg" />
           </label>
-          <button class="ghost-button clear-control choose-main-image-button" type="button" data-target-input="update-main-image-filename">Выбрать из Dropbox</button>
           <div class="grid two">
             <label><span>title</span><input id="field-title" type="text" autocomplete="off" /></label>
             <label><span>source_url</span><input id="field-source-url" type="url" autocomplete="off" /></label>
@@ -224,19 +238,6 @@
       <section class="card">
         <h2>Файлы</h2>
         <div id="file-plan" class="file-plan"></div>
-      </section>
-
-      <section id="dropbox-browser" class="card dropbox-browser" hidden>
-        <div class="browser-header">
-          <h2>Выбор картинки</h2>
-          <button id="close-dropbox-browser" class="ghost-button small-button" type="button">Закрыть</button>
-        </div>
-        <div class="browser-path-row">
-          <button id="browser-up-button" class="ghost-button small-button" type="button">Вверх</button>
-          <span id="browser-current-path">—</span>
-        </div>
-        <div id="browser-status" class="inline-status">—</div>
-        <div id="browser-list" class="browser-list"></div>
       </section>
     </main>
 

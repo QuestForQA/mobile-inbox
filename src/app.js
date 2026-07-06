@@ -671,10 +671,14 @@ function updateAuthStatus() {
 }
 
 function loadDropboxSettings() {
-  byId("dropbox-app-key").value = localStorage.getItem(DROPBOX_APP_KEY_STORAGE_KEY) || "";
+  const appKey = localStorage.getItem(DROPBOX_APP_KEY_STORAGE_KEY) || "";
+  const fallbackToken = localStorage.getItem(DROPBOX_TOKEN_STORAGE_KEY) || "";
+  const refreshToken = localStorage.getItem(DROPBOX_REFRESH_TOKEN_STORAGE_KEY) || "";
+  byId("dropbox-app-key").value = appKey;
   byId("dropbox-token").value = localStorage.getItem(DROPBOX_TOKEN_STORAGE_KEY) || "";
   byId("dropbox-inbox-path").value = localStorage.getItem(DROPBOX_INBOX_PATH_STORAGE_KEY) || "/ЗП_test/PicNestInbox";
   byId("dropbox-redirect-uri").value = currentRedirectUri();
+  byId("dropbox-card").open = !(appKey || fallbackToken || refreshToken);
   updateAuthStatus();
 }
 
@@ -692,15 +696,6 @@ function clearInput(inputId) {
   if (!element) return;
   element.value = "";
   render();
-}
-
-function setDropboxCollapsed(collapsed) {
-  byId("dropbox-settings-body").hidden = collapsed;
-  byId("dropbox-card").classList.toggle("collapsed", collapsed);
-}
-
-function toggleDropboxSettings() {
-  setDropboxCollapsed(!byId("dropbox-settings-body").hidden);
 }
 
 async function uploadToDropbox({ token, dropboxPath, blob, contentType }) {
@@ -1020,12 +1015,9 @@ async function loadDropboxBrowserPath(path) {
 }
 
 function openDropboxBrowser(targetInputId) {
+  if (targetInputId !== "move-main-image-filename") return;
   state.browserTargetInputId = targetInputId;
   const browser = byId("dropbox-browser");
-  const trigger = document.querySelector(`.choose-main-image-button[data-target-input="${targetInputId}"]`);
-  if (trigger) {
-    trigger.insertAdjacentElement("afterend", browser);
-  }
   browser.hidden = false;
   browser.scrollIntoView({ block: "nearest" });
   void loadDropboxBrowserPath(imageBrowserRootPath());
@@ -1033,6 +1025,8 @@ function openDropboxBrowser(targetInputId) {
 
 function closeDropboxBrowser() {
   state.browserTargetInputId = "";
+  byId("browser-list").innerHTML = "";
+  setBrowserStatus("—");
   byId("dropbox-browser").hidden = true;
 }
 
@@ -1211,12 +1205,6 @@ function bindEvents() {
     if (state.browserCurrentPath === rootPath) return;
     void loadDropboxBrowserPath(parentDropboxPath(state.browserCurrentPath));
   });
-  byId("dropbox-card").addEventListener("click", (event) => {
-    if (event.target.closest("button, input, select, textarea, label")) return;
-    if (event.target.closest("summary")) return;
-    const card = byId("dropbox-card");
-    card.open = !card.open;
-  });
 
   document.querySelectorAll(".choose-main-image-button").forEach((button) => {
     button.addEventListener("click", () => openDropboxBrowser(button.dataset.targetInput || ""));
@@ -1229,6 +1217,7 @@ function bindEvents() {
     ["clear-create-duplicate-image-urls", "create-duplicate-image-urls"],
     ["clear-add-images", "add-images"],
     ["clear-add-image-urls", "add-image-urls"],
+    ["clear-move-main-image-filename", "move-main-image-filename"],
   ].forEach(([buttonId, inputId]) => {
     byId(buttonId).addEventListener("click", () => clearInput(inputId));
   });
