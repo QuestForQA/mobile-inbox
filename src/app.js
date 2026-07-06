@@ -1,5 +1,5 @@
 const state = {
-  mode: "create_product",
+  mode: "products",
   installPrompt: null,
   browserTargetInputId: "",
   browserCurrentPath: "",
@@ -1263,7 +1263,7 @@ function setMode(mode) {
     element.hidden = mode === "products";
   });
   if (mode === "products") {
-    void loadProductsPath(state.productsCurrentPath || imageBrowserRootPath());
+    void loadProductsPath(imageBrowserRootPath());
     return;
   }
   resetCommandId();
@@ -1349,8 +1349,7 @@ function bindEvents() {
 loadDropboxSettings();
 bindEvents();
 void handleDropboxRedirect();
-resetCommandId();
-render();
+setMode(state.mode);
 
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("./sw.js").catch(() => {});
