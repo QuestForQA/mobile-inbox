@@ -763,6 +763,26 @@ async function dropboxApiRequest({ token, endpoint, body }) {
   });
 }
 
+async function getDropboxThumbnailUrl({ token, path }) {
+  const response = await fetch("https://content.dropboxapi.com/2/files/get_thumbnail", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Dropbox-API-Arg": httpHeaderSafeJson({
+        path,
+        format: "jpeg",
+        size: "w256h256",
+        mode: "strict",
+      }),
+    },
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Dropbox thumbnail failed ${response.status}: ${text}`);
+  }
+  return URL.createObjectURL(await response.blob());
+}
+
 async function dropboxTokenRequest(body) {
   const response = await fetch("https://api.dropboxapi.com/oauth2/token", {
     method: "POST",
@@ -1062,7 +1082,7 @@ function setProductsStatus(message, isError = false) {
   element.classList.toggle("error", isError);
 }
 
-function renderProductsEntries(entries) {
+function renderProductsEntries(entries, token) {
   const list = byId("products-list");
   list.innerHTML = "";
   const folders = entries
@@ -1078,32 +1098,72 @@ function renderProductsEntries(entries) {
     return;
   }
 
-  visibleEntries.forEach((entry) => {
-    const isFolder = entry[".tag"] === "folder";
-    const button = document.createElement("button");
-    button.className = `browser-entry ${isFolder ? "folder" : "file"}`;
-    button.type = "button";
-    button.dataset.path = entry.path_display || entry.path_lower || "";
-    button.dataset.name = entry.name || "";
+  if (folders.length) {
+    const folderList = document.createElement("div");
+    folderList.className = "products-folder-list";
+    folders.forEach((entry) => {
+      const button = document.createElement("button");
+      button.className = "browser-entry folder";
+      button.type = "button";
+      button.dataset.path = entry.path_display || entry.path_lower || "";
+      button.dataset.name = entry.name || "";
 
-    if (isFolder) {
       const kind = document.createElement("strong");
       kind.textContent = "Папка";
-      button.append(kind);
-    }
+      const name = document.createElement("span");
+      name.textContent = entry.name || "";
+      button.append(kind, name);
+
+      button.addEventListener("click", () => {
+        void loadProductsPath(button.dataset.path || "");
+      });
+      folderList.append(button);
+    });
+    list.append(folderList);
+  }
+
+  if (!images.length) return;
+
+  const imageGrid = document.createElement("div");
+  imageGrid.className = "products-image-grid";
+  images.forEach((entry) => {
+    const path = entry.path_display || entry.path_lower || "";
+    const button = document.createElement("button");
+    button.className = "product-image-card";
+    button.type = "button";
+    button.dataset.path = path;
+    button.dataset.name = entry.name || "";
+
+    const preview = document.createElement("div");
+    preview.className = "product-image-preview";
+    preview.textContent = "Фото";
+
     const name = document.createElement("span");
+    name.className = "product-image-name";
     name.textContent = entry.name || "";
-    button.append(name);
+    button.append(preview, name);
 
     button.addEventListener("click", () => {
-      if (isFolder) {
-        void loadProductsPath(button.dataset.path || "");
-        return;
-      }
       setProductsStatus(`Выбран товар: ${button.dataset.name || "—"}`);
     });
-    list.append(button);
+
+    if (path) {
+      getDropboxThumbnailUrl({ token, path })
+        .then((url) => {
+          preview.innerHTML = "";
+          const image = document.createElement("img");
+          image.src = url;
+          image.alt = entry.name || "";
+          image.loading = "lazy";
+          preview.append(image);
+        })
+        .catch(() => {
+          preview.textContent = "Нет превью";
+        });
+    }
+    imageGrid.append(button);
   });
+  list.append(imageGrid);
 }
 
 async function loadProductsPath(path = "") {
@@ -1114,8 +1174,9 @@ async function loadProductsPath(path = "") {
   setProductsStatus("Загружаю список товаров...");
 
   try {
+    const token = await getDropboxAccessToken();
     const entries = await listDropboxFolder(nextPath);
-    renderProductsEntries(entries);
+    renderProductsEntries(entries, token);
     const visibleCount = entries.filter((entry) => (
       entry[".tag"] === "folder" || (entry[".tag"] === "file" && isImageFilename(entry.name))
     )).length;
