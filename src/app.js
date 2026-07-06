@@ -1422,11 +1422,15 @@ function bindEvents() {
   });
 }
 
-loadDropboxSettings();
-bindEvents();
-void handleDropboxRedirect();
-setMode(state.mode);
+async function bootstrap() {
+  loadDropboxSettings();
+  bindEvents();
+  await handleDropboxRedirect();
+  setMode(state.mode);
 
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("./sw.js").catch(() => {});
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("./sw.js").catch(() => {});
+  }
 }
+
+void bootstrap();
