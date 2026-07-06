@@ -186,6 +186,10 @@ export function imagePath(commandId, imageKey, file) {
   return `images/${safeFilePart(commandId)}-${safeFilePart(imageKey)}${extension(file)}`;
 }
 
+export function isImageFilename(filename) {
+  return /\.(jpg|jpeg|png|webp|gif)$/i.test(String(filename || ""));
+}
+
 export function imagePathFromFilename(filename, file, uniqueSuffix = "") {
   const base = filename.replace(/\.[^.]+$/i, "");
   const nextBase = uniqueSuffix ? `${base} ${uniqueSuffix}` : base;
