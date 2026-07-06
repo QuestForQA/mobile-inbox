@@ -124,8 +124,8 @@ function joinDropboxPath(root, relativePath) {
 function imageBrowserRootPath() {
   const inboxPath = normalizeDropboxPath(value("dropbox-inbox-path"));
   return inboxPath.toLocaleLowerCase().includes("зп_test")
-    ? "/ЗП_test/PicNest_NotProtected"
-    : "/ЗП/PicNest_NotProtected";
+    ? "/ЗП_test"
+    : "/ЗП";
 }
 
 function parentDropboxPath(path) {
