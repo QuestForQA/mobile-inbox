@@ -338,6 +338,6 @@ export function parseImportInputLine(line) {
 export function stripImportListMarker(line) {
   return String(line || "")
     .trim()
-    .replace(/^\s*\d+[\).:-]\s+/, "")
+    .replace(/^\s*(?:\d+|[ivxlcdm]+)[\).:;-]\s*/i, "")
     .trim();
 }

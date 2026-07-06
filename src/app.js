@@ -9,6 +9,7 @@ import {
   parseImportInputLine,
   remoteImageName,
   safeFilePart,
+  stripImportListMarker,
   stripTrailingPriceToken,
 } from "./picnestProtocol.mjs";
 
@@ -51,6 +52,11 @@ function byId(id) {
 
 function value(id) {
   return String(byId(id)?.value || "").trim();
+}
+
+function checkedValue(name, fallback = "") {
+  const element = document.querySelector(`input[name="${name}"]:checked`);
+  return String(element?.value || fallback).trim();
 }
 
 function files(id) {
@@ -127,6 +133,18 @@ function statusBrowserRootPath() {
   return joinDropboxPath(productsRootPath(), "PicNest_NotProtected");
 }
 
+function inboxImagesRootPath() {
+  return joinDropboxPath(normalizeDropboxPath(value("dropbox-inbox-path")), "images");
+}
+
+function browserRootPathForTarget(targetInputId) {
+  if (targetInputId === "move-main-image-filename") return statusBrowserRootPath();
+  if (targetInputId === "create-main-image-dropbox" || targetInputId === "create-duplicate-image-dropbox") {
+    return inboxImagesRootPath();
+  }
+  return statusBrowserRootPath();
+}
+
 function clampDropboxPathToRoot(path, rootPath) {
   const normalizedPath = normalizeDropboxPath(path);
   const normalizedRoot = normalizeDropboxPath(rootPath);
@@ -161,7 +179,7 @@ function commandEnvelope(type, payload) {
 }
 
 function createProductInputLines() {
-  return lines("create-import-input-line");
+  return lines("create-import-input-line").map(stripImportListMarker).filter(Boolean);
 }
 
 function createProductMainImageUrls() {
@@ -201,8 +219,8 @@ function buildCreateProductFromLine(
   const title = stripTrailingPriceToken(total === 1 ? (value("create-title") || parsed.title) : parsed.title);
   const userParams = total === 1 ? (value("create-user-params") || parsed.userParams) : parsed.userParams;
   const filename = generatePicNestFilename(parsed.source, title, userParams);
-  const mainSource = value("create-main-image-source") || "phone";
-  const duplicateSource = value("create-duplicate-image-source") || "phone";
+  const mainSource = checkedValue("create-main-image-source", "phone");
+  const duplicateSource = checkedValue("create-duplicate-image-source", "phone");
   const mainImage = total === 1 && mainSource === "phone" ? (files("create-main-image")[0] || null) : null;
   const duplicateImages = total === 1 && duplicateSource === "phone" ? files("create-duplicate-images") : [];
   const images = [];
@@ -439,12 +457,12 @@ function render() {
   const commands = buildCommands();
   byId("json-output").textContent = JSON.stringify(commands.length === 1 ? commands[0] : commands, null, 2);
   renderFilePlan(commands);
+  renderCreateBatchProductsPanel(commands);
   renderParsedCreateFields(commands[0]);
 }
 
 function renderParsedCreateFields(command) {
   if (state.mode !== "create_product") return;
-  renderCreateBatchProductsPanel();
   if (!command?.payload) {
     byId("parsed-source-url").textContent = "—";
     byId("parsed-source").textContent = "—";
@@ -460,11 +478,10 @@ function renderParsedCreateFields(command) {
   );
 }
 
-function renderCreateBatchProductsPanel() {
+function renderCreateBatchProductsPanel(commands = buildCreateProductCommands()) {
   const panel = byId("create-batch-products-panel");
   const tabs = byId("create-batch-product-tabs");
   const details = byId("create-batch-product-details");
-  const commands = buildCreateProductCommands();
   if (!panel || !tabs || !details || commands.length <= 1) {
     if (panel) panel.hidden = true;
     return;
@@ -565,13 +582,32 @@ function clearInput(inputId) {
 }
 
 function updateCreateImageSourcePanels() {
-  const mainSource = value("create-main-image-source") || "phone";
-  const duplicateSource = value("create-duplicate-image-source") || "phone";
+  const mainSource = checkedValue("create-main-image-source", "phone");
+  const duplicateSource = checkedValue("create-duplicate-image-source", "phone");
   document.querySelectorAll("[data-main-image-source-panel]").forEach((element) => {
     element.hidden = element.dataset.mainImageSourcePanel !== mainSource;
   });
   document.querySelectorAll("[data-duplicate-image-source-panel]").forEach((element) => {
     element.hidden = element.dataset.duplicateImageSourcePanel !== duplicateSource;
+  });
+}
+
+function bindExclusiveCheckboxGroup(name, fallback = "phone") {
+  const inputs = Array.from(document.querySelectorAll(`input[name="${name}"]`));
+  inputs.forEach((input) => {
+    input.addEventListener("change", () => {
+      if (input.checked) {
+        inputs.forEach((candidate) => {
+          if (candidate !== input) candidate.checked = false;
+        });
+      }
+      if (!inputs.some((candidate) => candidate.checked)) {
+        const fallbackInput = inputs.find((candidate) => candidate.value === fallback) || inputs[0];
+        if (fallbackInput) fallbackInput.checked = true;
+      }
+      updateCreateImageSourcePanels();
+      render();
+    });
   });
 }
 
@@ -886,13 +922,21 @@ function renderBrowserEntries(entries) {
       const filename = button.dataset.name || "";
       if (state.browserTargetInputId && filename) {
         const target = byId(state.browserTargetInputId);
-        target.value = filename;
+        if (target.tagName === "TEXTAREA") {
+          const current = String(target.value || "").trim();
+          const separator = state.browserTargetInputId === "create-duplicate-image-dropbox" && current && !current.endsWith(";") ? "; " : "\n";
+          target.value = current ? `${current}${separator}${filename}` : filename;
+        } else {
+          target.value = filename;
+        }
         target.dispatchEvent(new Event("input", { bubbles: true }));
         target.dispatchEvent(new Event("change", { bubbles: true }));
-        setStatus(`Выбрана основная картинка: ${filename}`);
+        setStatus(`Выбран файл Dropbox: ${filename}`);
         render();
       }
-      closeDropboxBrowser();
+      if (state.browserTargetInputId !== "create-duplicate-image-dropbox") {
+        closeDropboxBrowser();
+      }
     });
     list.append(button);
   });
@@ -922,12 +966,12 @@ async function loadDropboxBrowserPath(path) {
 }
 
 function openDropboxBrowser(targetInputId) {
-  if (targetInputId !== "move-main-image-filename") return;
+  if (!["move-main-image-filename", "create-main-image-dropbox", "create-duplicate-image-dropbox"].includes(targetInputId)) return;
   state.browserTargetInputId = targetInputId;
   const browser = byId("dropbox-browser");
   browser.hidden = false;
   browser.scrollIntoView({ block: "nearest" });
-  void loadDropboxBrowserPath(statusBrowserRootPath());
+  void loadDropboxBrowserPath(browserRootPathForTarget(targetInputId));
 }
 
 function closeDropboxBrowser() {
@@ -1235,14 +1279,8 @@ function bindEvents() {
     render();
   });
 
-  byId("create-main-image-source").addEventListener("change", () => {
-    updateCreateImageSourcePanels();
-    render();
-  });
-  byId("create-duplicate-image-source").addEventListener("change", () => {
-    updateCreateImageSourcePanels();
-    render();
-  });
+  bindExclusiveCheckboxGroup("create-main-image-source", "phone");
+  bindExclusiveCheckboxGroup("create-duplicate-image-source", "phone");
 
   byId("copy-json-button").addEventListener("click", async () => {
     await navigator.clipboard.writeText(byId("json-output").textContent || "{}");
@@ -1264,7 +1302,7 @@ function bindEvents() {
   byId("send-dropbox-button").addEventListener("click", () => void sendCurrentCommandToDropbox());
   byId("close-dropbox-browser").onclick = closeDropboxBrowser;
   byId("browser-up-button").addEventListener("click", () => {
-    const rootPath = statusBrowserRootPath();
+    const rootPath = browserRootPathForTarget(state.browserTargetInputId);
     if (state.browserCurrentPath === rootPath) return;
     void loadDropboxBrowserPath(clampDropboxPathToRoot(parentDropboxPath(state.browserCurrentPath), rootPath));
   });

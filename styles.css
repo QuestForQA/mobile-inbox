@@ -167,6 +167,33 @@ label span {
   font-weight: 700;
 }
 
+.source-choice-group {
+  display: grid;
+  gap: 8px;
+}
+
+.source-choice-group > span {
+  color: #475467;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.source-choice-group label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #344054;
+}
+
+.source-choice-group input {
+  width: auto;
+}
+
 input,
 select,
 textarea {

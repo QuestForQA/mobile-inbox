@@ -13,7 +13,7 @@
       <header class="app-header">
         <div>
           <h1>PicNest Mobile Inbox</h1>
-          <p>Команды для PicNestInbox · v29</p>
+          <p>Команды для PicNestInbox · v31</p>
         </div>
         <button id="install-button" class="ghost-button" type="button" hidden>Установить</button>
       </header>
@@ -109,14 +109,12 @@
 
         <section class="card">
           <h2>Картинки</h2>
-          <label>
+          <div class="source-choice-group" role="group" aria-label="Main image source">
             <span>Main image source</span>
-            <select id="create-main-image-source">
-              <option value="phone">С телефона</option>
-              <option value="dropbox">Из Dropbox</option>
-              <option value="url">URL</option>
-            </select>
-          </label>
+            <label><input type="checkbox" name="create-main-image-source" value="phone" checked /> С телефона</label>
+            <label><input type="checkbox" name="create-main-image-source" value="dropbox" /> Из Dropbox</label>
+            <label><input type="checkbox" name="create-main-image-source" value="url" /> URL</label>
+          </div>
           <label data-main-image-source-panel="phone">
             <span>Main image</span>
             <input id="create-main-image" type="file" accept="image/*" />
@@ -126,19 +124,18 @@
             <span>Main image from Dropbox</span>
             <textarea id="create-main-image-dropbox" rows="3" autocomplete="off" placeholder="Для списка: один файл на строку из PicNestInbox/images"></textarea>
           </label>
+          <button class="ghost-button clear-control choose-main-image-button" data-main-image-source-panel="dropbox" type="button" data-target-input="create-main-image-dropbox">Выбрать из Dropbox</button>
           <label data-main-image-source-panel="url">
             <span>Main image URL</span>
             <textarea id="create-main-image-url" rows="3" autocomplete="off" placeholder="Для списка товаров: один URL картинки на строку"></textarea>
           </label>
           <button id="clear-create-main-image-url" class="ghost-button clear-control" data-main-image-source-panel="url" type="button">Удалить URL</button>
-          <label>
+          <div class="source-choice-group" role="group" aria-label="Duplicate image source">
             <span>Duplicate image source</span>
-            <select id="create-duplicate-image-source">
-              <option value="phone">С телефона</option>
-              <option value="dropbox">Из Dropbox</option>
-              <option value="url">URL</option>
-            </select>
-          </label>
+            <label><input type="checkbox" name="create-duplicate-image-source" value="phone" checked /> С телефона</label>
+            <label><input type="checkbox" name="create-duplicate-image-source" value="dropbox" /> Из Dropbox</label>
+            <label><input type="checkbox" name="create-duplicate-image-source" value="url" /> URL</label>
+          </div>
           <label data-duplicate-image-source-panel="phone">
             <span>Duplicate images</span>
             <input id="create-duplicate-images" type="file" accept="image/*" multiple />
@@ -148,6 +145,7 @@
             <span>Duplicate images from Dropbox</span>
             <textarea id="create-duplicate-image-dropbox" rows="3" placeholder="Для списка: одна строка на товар; несколько файлов через ;"></textarea>
           </label>
+          <button class="ghost-button clear-control choose-main-image-button" data-duplicate-image-source-panel="dropbox" type="button" data-target-input="create-duplicate-image-dropbox">Выбрать из Dropbox</button>
           <label data-duplicate-image-source-panel="url">
             <span>Duplicate image URLs</span>
             <textarea id="create-duplicate-image-urls" rows="3" placeholder="Один URL картинки на строку"></textarea>
