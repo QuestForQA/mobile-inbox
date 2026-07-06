@@ -273,15 +273,21 @@ textarea {
   background: #f8fbff;
 }
 
-.browser-header,
 .browser-path-row {
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
+.browser-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
 .browser-header h2 {
-  flex: 1;
+  min-width: 0;
 }
 
 .browser-current-path {
