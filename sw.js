@@ -1,4 +1,4 @@
-const CACHE_NAME = "picnest-mobile-inbox-v12";
+const CACHE_NAME = "picnest-mobile-inbox-v14";
 const ASSETS = [
   "./",
   "./index.html",

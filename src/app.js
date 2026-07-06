@@ -225,6 +225,18 @@ function stripDuplicatePrefix(text, prefixes) {
   return result;
 }
 
+function paramsWithoutPrice(userParams) {
+  return stripTrailingPriceToken(userParams).trim();
+}
+
+function titleWithParamsWithoutPrice(title, userParams) {
+  const baseTitle = stripTrailingPriceToken(title).trim();
+  const params = paramsWithoutPrice(userParams);
+  if (!params) return baseTitle;
+  if (baseTitle.toLocaleLowerCase().endsWith(params.toLocaleLowerCase())) return baseTitle;
+  return [baseTitle, params].filter(Boolean).join(" ").trim();
+}
+
 function normalizeTitleForFilename(title, source) {
   let base = String(title || "").split("|", 1)[0].trim();
   base = stripDuplicatePrefix(base, [source]);
@@ -254,6 +266,9 @@ function generatePicNestFilename(source, title, userParams, uniqueSuffix = "") {
     [source, normalizedTitle]
   ));
   if (cleanedParams === "Untitled") cleanedParams = "";
+  if (cleanedParams && titlePart.toLocaleLowerCase().endsWith(cleanedParams.toLocaleLowerCase())) {
+    cleanedParams = "";
+  }
   if (cleanedParams && titlePart && cleanedParams.toLocaleLowerCase() === titlePart.toLocaleLowerCase()) {
     cleanedParams = "";
   }
@@ -416,7 +431,7 @@ function parseImportInputLine(line) {
     importInputLine: String(line || "").trim(),
     sourceUrl,
     source: inferSourceFromUrl(sourceUrl),
-    title: split.title || fallbackTitle,
+    title: titleWithParamsWithoutPrice(split.title || fallbackTitle, split.userParams),
     userParams: split.userParams,
   };
 }
@@ -944,11 +959,14 @@ function renderBrowserEntries(entries) {
     button.dataset.name = entry.name || "";
     button.dataset.kind = entry[".tag"] || "";
 
-    const kind = document.createElement("strong");
-    kind.textContent = isFolder ? "Папка" : "Картинка";
     const name = document.createElement("span");
     name.textContent = entry.name || "";
-    button.append(kind, name);
+    if (isFolder) {
+      const kind = document.createElement("strong");
+      kind.textContent = "Папка";
+      button.append(kind);
+    }
+    button.append(name);
 
     button.addEventListener("click", () => {
       const path = button.dataset.path || "";
@@ -1180,7 +1198,7 @@ function bindEvents() {
 
   byId("create-import-input-line").addEventListener("input", () => {
     const parsed = parseImportInputLine(value("create-import-input-line"));
-    byId("create-title").value = stripTrailingPriceToken(parsed.title);
+    byId("create-title").value = parsed.title;
     byId("create-user-params").value = parsed.userParams;
     render();
   });

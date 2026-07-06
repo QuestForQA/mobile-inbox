@@ -256,6 +256,12 @@ textarea {
 
 .parsed-grid span {
   color: #344054;
+}
+
+[hidden] {
+  display: none !important;
+}
+
 .clear-control {
   justify-self: start;
   min-height: 34px;
@@ -271,15 +277,22 @@ textarea {
 .browser-path-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 10px;
 }
 
-.browser-path-row span {
+.browser-header h2 {
+  flex: 0 0 auto;
+}
+
+.browser-header span {
   flex: 1;
   color: #344054;
   font-size: 12px;
   overflow-wrap: anywhere;
+}
+
+.browser-path-row {
+  justify-content: flex-start;
 }
 
 .browser-list {
