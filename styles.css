@@ -281,11 +281,10 @@ textarea {
 }
 
 .browser-header h2 {
-  flex: 0 0 auto;
+  flex: 1;
 }
 
-.browser-header span {
-  flex: 1;
+.browser-current-path {
   color: #344054;
   font-size: 12px;
   overflow-wrap: anywhere;
