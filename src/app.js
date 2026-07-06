@@ -3,6 +3,7 @@ const state = {
   installPrompt: null,
   browserTargetInputId: "",
   browserCurrentPath: "",
+  productsCurrentPath: "",
 };
 
 const DROPBOX_TOKEN_STORAGE_KEY = "picnest-mobile-dropbox-token";
@@ -631,6 +632,7 @@ function renderFilePlan(command) {
 }
 
 function render() {
+  if (state.mode === "products") return;
   const command = buildCommand();
   byId("json-output").textContent = JSON.stringify(command, null, 2);
   renderFilePlan(command);
@@ -929,6 +931,32 @@ async function checkDropboxConnection() {
   }
 }
 
+async function listDropboxFolder(path) {
+  const token = await getDropboxAccessToken();
+  const entries = [];
+  let result = await dropboxApiRequest({
+    token,
+    endpoint: "files/list_folder",
+    body: {
+      path: normalizeDropboxPath(path),
+      recursive: false,
+      include_media_info: false,
+      include_deleted: false,
+      include_has_explicit_shared_members: false,
+    },
+  });
+  entries.push(...(result.entries || []));
+  while (result.has_more) {
+    result = await dropboxApiRequest({
+      token,
+      endpoint: "files/list_folder/continue",
+      body: { cursor: result.cursor },
+    });
+    entries.push(...(result.entries || []));
+  }
+  return entries;
+}
+
 function setBrowserStatus(message, isError = false) {
   const element = byId("browser-status");
   element.textContent = message;
@@ -1004,27 +1032,7 @@ async function loadDropboxBrowserPath(path) {
   setBrowserStatus("Загружаю список файлов...");
 
   try {
-    const entries = [];
-    let result = await dropboxApiRequest({
-      token,
-      endpoint: "files/list_folder",
-      body: {
-        path: state.browserCurrentPath,
-        recursive: false,
-        include_media_info: false,
-        include_deleted: false,
-        include_has_explicit_shared_members: false,
-      },
-    });
-    entries.push(...(result.entries || []));
-    while (result.has_more) {
-      result = await dropboxApiRequest({
-        token,
-        endpoint: "files/list_folder/continue",
-        body: { cursor: result.cursor },
-      });
-      entries.push(...(result.entries || []));
-    }
+    const entries = await listDropboxFolder(state.browserCurrentPath);
     renderBrowserEntries(entries);
     setBrowserStatus(`Найдено: ${entries.length}`);
   } catch (error) {
@@ -1046,6 +1054,75 @@ function closeDropboxBrowser() {
   byId("browser-list").innerHTML = "";
   setBrowserStatus("—");
   byId("dropbox-browser").hidden = true;
+}
+
+function setProductsStatus(message, isError = false) {
+  const element = byId("products-status");
+  element.textContent = message;
+  element.classList.toggle("error", isError);
+}
+
+function renderProductsEntries(entries) {
+  const list = byId("products-list");
+  list.innerHTML = "";
+  const folders = entries
+    .filter((entry) => entry[".tag"] === "folder")
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const images = entries
+    .filter((entry) => entry[".tag"] === "file" && isImageFilename(entry.name))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const visibleEntries = [...folders, ...images];
+
+  if (!visibleEntries.length) {
+    list.innerHTML = `<div class="browser-empty">Пусто</div>`;
+    return;
+  }
+
+  visibleEntries.forEach((entry) => {
+    const isFolder = entry[".tag"] === "folder";
+    const button = document.createElement("button");
+    button.className = `browser-entry ${isFolder ? "folder" : "file"}`;
+    button.type = "button";
+    button.dataset.path = entry.path_display || entry.path_lower || "";
+    button.dataset.name = entry.name || "";
+
+    if (isFolder) {
+      const kind = document.createElement("strong");
+      kind.textContent = "Папка";
+      button.append(kind);
+    }
+    const name = document.createElement("span");
+    name.textContent = entry.name || "";
+    button.append(name);
+
+    button.addEventListener("click", () => {
+      if (isFolder) {
+        void loadProductsPath(button.dataset.path || "");
+        return;
+      }
+      setProductsStatus(`Выбран товар: ${button.dataset.name || "—"}`);
+    });
+    list.append(button);
+  });
+}
+
+async function loadProductsPath(path = "") {
+  const nextPath = path ? normalizeDropboxPath(path) : imageBrowserRootPath();
+  state.productsCurrentPath = nextPath;
+  byId("products-current-path").textContent = nextPath;
+  byId("products-list").innerHTML = "";
+  setProductsStatus("Загружаю список товаров...");
+
+  try {
+    const entries = await listDropboxFolder(nextPath);
+    renderProductsEntries(entries);
+    const visibleCount = entries.filter((entry) => (
+      entry[".tag"] === "folder" || (entry[".tag"] === "file" && isImageFilename(entry.name))
+    )).length;
+    setProductsStatus(`Найдено: ${visibleCount}`);
+  } catch (error) {
+    setProductsStatus(error instanceof Error ? error.message : String(error), true);
+  }
 }
 
 async function waitForDropboxSaveUrl({ token, asyncJobId }) {
@@ -1182,6 +1259,13 @@ function setMode(mode) {
   document.querySelectorAll("[data-mode-panel]").forEach((panel) => {
     panel.classList.toggle("active", panel.dataset.modePanel === mode);
   });
+  document.querySelectorAll(".command-only").forEach((element) => {
+    element.hidden = mode === "products";
+  });
+  if (mode === "products") {
+    void loadProductsPath(state.productsCurrentPath || imageBrowserRootPath());
+    return;
+  }
   resetCommandId();
   render();
 }
@@ -1222,6 +1306,14 @@ function bindEvents() {
     const rootPath = imageBrowserRootPath();
     if (state.browserCurrentPath === rootPath) return;
     void loadDropboxBrowserPath(parentDropboxPath(state.browserCurrentPath));
+  });
+  byId("products-up-button").addEventListener("click", () => {
+    const rootPath = imageBrowserRootPath();
+    if (!state.productsCurrentPath || state.productsCurrentPath === rootPath) return;
+    void loadProductsPath(parentDropboxPath(state.productsCurrentPath));
+  });
+  byId("products-refresh-button").addEventListener("click", () => {
+    void loadProductsPath(state.productsCurrentPath || imageBrowserRootPath());
   });
 
   document.querySelectorAll(".choose-main-image-button").forEach((button) => {
