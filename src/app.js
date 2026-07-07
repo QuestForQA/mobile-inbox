@@ -67,6 +67,10 @@ function lines(id) {
   return value(id).split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
 }
 
+function rawLines(id) {
+  return String(byId(id)?.value || "").split(/\r?\n/).map((line) => line.trim());
+}
+
 function splitImageListLine(line) {
   return String(line || "")
     .split(";")
@@ -199,19 +203,29 @@ function createProductInputLines() {
 }
 
 function createProductMainImageUrls() {
-  return lines("create-main-image-url");
+  return rawLines("create-main-image-url");
 }
 
 function createProductMainImageDropboxFiles() {
-  return lines("create-main-image-dropbox");
+  return rawLines("create-main-image-dropbox");
+}
+
+function setTextareaLineValue(inputId, index, nextValue) {
+  const target = byId(inputId);
+  const values = String(target.value || "").split(/\r?\n/);
+  while (values.length <= index) values.push("");
+  values[index] = nextValue;
+  target.value = values.join("\n").replace(/\n+$/g, "");
+  target.dispatchEvent(new Event("input", { bubbles: true }));
+  target.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
 function createProductDuplicateDropboxGroups() {
-  return lines("create-duplicate-image-dropbox").map(splitImageListLine);
+  return rawLines("create-duplicate-image-dropbox").map(splitImageListLine);
 }
 
 function createProductDuplicateUrlGroups() {
-  return lines("create-duplicate-image-urls").map(splitImageListLine);
+  return rawLines("create-duplicate-image-urls").map(splitImageListLine);
 }
 
 function commandIdForBatchItem(type, index, total) {
@@ -945,7 +959,12 @@ function renderBrowserEntries(entries) {
         const selectedValue = state.browserTargetInputId === "move-main-image-filename" ? filename : path;
         if (target.tagName === "TEXTAREA") {
           if (state.browserTargetInputId === "create-main-image-dropbox") {
-            target.value = selectedValue;
+            const productCount = createProductInputLines().length;
+            if (productCount > 1) {
+              setTextareaLineValue("create-main-image-dropbox", state.selectedCreateProductIndex, selectedValue);
+            } else {
+              target.value = selectedValue;
+            }
           } else {
             const current = String(target.value || "").trim();
             const separator = state.browserTargetInputId === "create-duplicate-image-dropbox" && current && !current.endsWith(";") ? "; " : "\n";
@@ -954,8 +973,10 @@ function renderBrowserEntries(entries) {
         } else {
           target.value = selectedValue;
         }
-        target.dispatchEvent(new Event("input", { bubbles: true }));
-        target.dispatchEvent(new Event("change", { bubbles: true }));
+        if (!(target.tagName === "TEXTAREA" && state.browserTargetInputId === "create-main-image-dropbox" && createProductInputLines().length > 1)) {
+          target.dispatchEvent(new Event("input", { bubbles: true }));
+          target.dispatchEvent(new Event("change", { bubbles: true }));
+        }
         setStatus(`Выбран файл Dropbox: ${filename}`);
         render();
       }
