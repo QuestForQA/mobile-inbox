@@ -168,11 +168,18 @@ label span {
 }
 
 .source-choice-group {
-  display: grid;
-  gap: 8px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  background: #ffffff;
 }
 
 .source-choice-group > span {
+  flex: 1 0 100%;
   color: #475467;
   font-size: 12px;
   font-weight: 700;
@@ -182,11 +189,11 @@ label span {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 38px;
-  padding: 8px 10px;
-  border: 1px solid #d0d5dd;
-  border-radius: 8px;
-  background: #ffffff;
+  min-height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: #344054;
 }
 

@@ -137,7 +137,6 @@ export function titleWithParamsWithoutPrice(title, userParams) {
 export function normalizeTitleForFilename(title, source) {
   let base = String(title || "").split("|", 1)[0].trim();
   base = stripDuplicatePrefix(base, [source]);
-  if (base.includes(" - ")) base = base.split(" - ").pop().trim();
   if (base.includes(",")) base = base.split(",", 1)[0].trim();
   return base;
 }

@@ -455,6 +455,10 @@ function renderFilePlan(commands) {
 function render() {
   if (state.mode === "products") return;
   const commands = buildCommands();
+  const isCreateBatch = state.mode === "create_product" && commands.length > 1;
+  document.querySelectorAll("[data-create-single-field]").forEach((element) => {
+    element.hidden = isCreateBatch;
+  });
   byId("json-output").textContent = JSON.stringify(commands.length === 1 ? commands[0] : commands, null, 2);
   renderFilePlan(commands);
   renderCreateBatchProductsPanel(commands);
@@ -951,7 +955,7 @@ async function loadDropboxBrowserPath(path) {
     return;
   }
 
-  state.browserCurrentPath = clampDropboxPathToRoot(path, statusBrowserRootPath());
+  state.browserCurrentPath = clampDropboxPathToRoot(path, browserRootPathForTarget(state.browserTargetInputId));
   byId("browser-current-path").textContent = state.browserCurrentPath;
   byId("browser-list").innerHTML = "";
   setBrowserStatus("Загружаю список файлов...");

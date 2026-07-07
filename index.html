@@ -13,7 +13,7 @@
       <header class="app-header">
         <div>
           <h1>PicNest Mobile Inbox</h1>
-          <p>Команды для PicNestInbox · v31</p>
+          <p>Команды для PicNestInbox · v32</p>
         </div>
         <button id="install-button" class="ghost-button" type="button" hidden>Установить</button>
       </header>
@@ -78,7 +78,7 @@
             <span>import_input_line</span>
             <textarea id="create-import-input-line" rows="4" required placeholder="https://site/product Название цвет размер цена"></textarea>
           </label>
-          <label>
+          <label data-create-single-field>
             <span>title</span>
             <input id="create-title" type="text" autocomplete="off" placeholder="Заполнится из строки, можно поправить" />
           </label>
@@ -91,12 +91,12 @@
                 <option value="arrived">Приехало</option>
               </select>
             </label>
-            <label>
+            <label data-create-single-field>
               <span>user_params</span>
               <input id="create-user-params" type="text" autocomplete="off" placeholder="Заполнится из строки, можно поправить" />
             </label>
           </div>
-          <div class="parsed-grid">
+          <div class="parsed-grid" data-create-single-field>
             <div><strong>source_url</strong><span id="parsed-source-url">—</span></div>
             <div><strong>source</strong><span id="parsed-source">—</span></div>
             <div><strong>filename</strong><span id="parsed-filename">—</span></div>
@@ -193,18 +193,6 @@
             <button class="ghost-button clear-control choose-main-image-button" type="button" data-target-input="move-main-image-filename">Выбрать из Dropbox</button>
             <button id="clear-move-main-image-filename" class="ghost-button clear-control" type="button">Удалить файл</button>
           </div>
-          <section id="dropbox-browser" class="card dropbox-browser" hidden>
-            <div class="browser-header">
-              <h2>Выбор из Dropbox</h2>
-              <button id="close-dropbox-browser" class="ghost-button small-button" type="button">Закрыть</button>
-            </div>
-            <div id="browser-current-path" class="browser-current-path">—</div>
-            <div class="browser-path-row">
-              <button id="browser-up-button" class="ghost-button small-button" type="button">Вверх</button>
-            </div>
-            <div id="browser-status" class="inline-status">—</div>
-            <div id="browser-list" class="browser-list"></div>
-          </section>
           <label>
             <span>to_status</span>
             <select id="move-to-status">
@@ -218,6 +206,19 @@
           </label>
         </section>
       </form>
+
+      <section id="dropbox-browser" class="card dropbox-browser command-only" hidden>
+        <div class="browser-header">
+          <h2>Выбор из Dropbox</h2>
+          <button id="close-dropbox-browser" class="ghost-button small-button" type="button">Закрыть</button>
+        </div>
+        <div id="browser-current-path" class="browser-current-path">—</div>
+        <div class="browser-path-row">
+          <button id="browser-up-button" class="ghost-button small-button" type="button">Вверх</button>
+        </div>
+        <div id="browser-status" class="inline-status">—</div>
+        <div id="browser-list" class="browser-list"></div>
+      </section>
 
       <form id="update-fields-form" class="command-form" data-mode-panel="update_fields">
         <section class="card">
