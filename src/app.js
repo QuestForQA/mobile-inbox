@@ -20,6 +20,13 @@ const state = {
   browserCurrentPath: "",
   productsCurrentPath: "",
   selectedCreateProductIndex: 0,
+  createBatchImageProductCount: 0,
+  createBatchImages: {
+    mainDropbox: [],
+    mainUrl: [],
+    duplicateDropbox: [],
+    duplicateUrls: [],
+  },
 };
 
 const DROPBOX_TOKEN_STORAGE_KEY = "picnest-mobile-dropbox-token";
@@ -45,6 +52,13 @@ const FIELD_INPUTS = [
   ["store_color_text", "field-store-color-text"],
   ["composition_care_text", "field-composition-care-text"],
 ];
+
+const CREATE_BATCH_IMAGE_INPUTS = {
+  "create-main-image-dropbox": "mainDropbox",
+  "create-main-image-url": "mainUrl",
+  "create-duplicate-image-dropbox": "duplicateDropbox",
+  "create-duplicate-image-urls": "duplicateUrls",
+};
 
 function byId(id) {
   return document.getElementById(id);
@@ -202,6 +216,48 @@ function createProductInputLines() {
   return lines("create-import-input-line").map(stripImportListMarker).filter(Boolean);
 }
 
+function resetCreateBatchImageState() {
+  state.createBatchImageProductCount = 0;
+  state.createBatchImages = {
+    mainDropbox: [],
+    mainUrl: [],
+    duplicateDropbox: [],
+    duplicateUrls: [],
+  };
+}
+
+function ensureCreateBatchImageState(total) {
+  if (total <= 1) return;
+  if (state.createBatchImageProductCount !== total) {
+    Object.entries(CREATE_BATCH_IMAGE_INPUTS).forEach(([inputId, key]) => {
+      const previous = state.createBatchImages[key] || [];
+      const fromField = rawLines(inputId);
+      const source = previous.some(Boolean) ? previous : fromField;
+      state.createBatchImages[key] = Array.from({ length: total }, (_, index) => source[index] || "");
+    });
+    state.createBatchImageProductCount = total;
+  }
+}
+
+function setCreateBatchImageValue(inputId, index, nextValue) {
+  const key = CREATE_BATCH_IMAGE_INPUTS[inputId];
+  if (!key) return;
+  const total = createProductInputLines().length;
+  ensureCreateBatchImageState(total);
+  state.createBatchImages[key][index] = nextValue;
+}
+
+function syncCreateBatchImageFields(total) {
+  if (state.mode !== "create_product") return;
+  if (total <= 1) return;
+  ensureCreateBatchImageState(total);
+  Object.entries(CREATE_BATCH_IMAGE_INPUTS).forEach(([inputId, key]) => {
+    const input = byId(inputId);
+    if (!input) return;
+    input.value = state.createBatchImages[key][state.selectedCreateProductIndex] || "";
+  });
+}
+
 function createProductMainImageUrls() {
   return rawLines("create-main-image-url");
 }
@@ -340,13 +396,14 @@ function buildCreateProductCommands() {
   const duplicateDropboxGroups = createProductDuplicateDropboxGroups();
   const duplicateUrlGroups = createProductDuplicateUrlGroups();
   const total = productLines.length;
+  ensureCreateBatchImageState(total);
   return productLines.map((line, index) => buildCreateProductFromLine(line, {
     index,
     total,
-    mainImageUrl: total === 1 ? (lines("create-main-image-url")[0] || value("create-main-image-url")) : (imageUrls[index] || ""),
-    mainImageDropbox: total === 1 ? (lines("create-main-image-dropbox")[0] || value("create-main-image-dropbox")) : (imageDropboxFiles[index] || ""),
-    duplicateDropboxFiles: total === 1 ? splitImageListLine(value("create-duplicate-image-dropbox")) : (duplicateDropboxGroups[index] || []),
-    duplicateImageUrls: total === 1 ? lines("create-duplicate-image-urls") : (duplicateUrlGroups[index] || []),
+    mainImageUrl: total === 1 ? (lines("create-main-image-url")[0] || value("create-main-image-url")) : (state.createBatchImages.mainUrl[index] || imageUrls[index] || ""),
+    mainImageDropbox: total === 1 ? (lines("create-main-image-dropbox")[0] || value("create-main-image-dropbox")) : (state.createBatchImages.mainDropbox[index] || imageDropboxFiles[index] || ""),
+    duplicateDropboxFiles: total === 1 ? splitImageListLine(value("create-duplicate-image-dropbox")) : splitImageListLine(state.createBatchImages.duplicateDropbox[index] || duplicateDropboxGroups[index]?.join("; ") || ""),
+    duplicateImageUrls: total === 1 ? lines("create-duplicate-image-urls") : splitImageListLine(state.createBatchImages.duplicateUrls[index] || duplicateUrlGroups[index]?.join("; ") || ""),
   }));
 }
 
@@ -492,6 +549,7 @@ function render() {
   byId("json-output").textContent = JSON.stringify(commands.length === 1 ? commands[0] : commands, null, 2);
   renderFilePlan(commands);
   renderCreateBatchProductsPanel(commands);
+  syncCreateBatchImageFields(commands.length);
   renderParsedCreateFields(commands[0]);
 }
 
@@ -612,6 +670,9 @@ function clearInput(inputId) {
   const element = byId(inputId);
   if (!element) return;
   element.value = "";
+  if (CREATE_BATCH_IMAGE_INPUTS[inputId] && createProductInputLines().length > 1) {
+    setCreateBatchImageValue(inputId, state.selectedCreateProductIndex, "");
+  }
   render();
 }
 
@@ -958,13 +1019,20 @@ function renderBrowserEntries(entries) {
         const target = byId(state.browserTargetInputId);
         const selectedValue = state.browserTargetInputId === "move-main-image-filename" ? filename : path;
         if (target.tagName === "TEXTAREA") {
+          const productCount = createProductInputLines().length;
           if (state.browserTargetInputId === "create-main-image-dropbox") {
-            const productCount = createProductInputLines().length;
             if (productCount > 1) {
-              setTextareaLineValue("create-main-image-dropbox", state.selectedCreateProductIndex, selectedValue);
+              setCreateBatchImageValue("create-main-image-dropbox", state.selectedCreateProductIndex, selectedValue);
+              target.value = selectedValue;
             } else {
               target.value = selectedValue;
             }
+          } else if (state.browserTargetInputId === "create-duplicate-image-dropbox" && productCount > 1) {
+            const current = state.createBatchImages.duplicateDropbox[state.selectedCreateProductIndex] || "";
+            const separator = current && !current.endsWith(";") ? "; " : "";
+            const nextValue = current ? `${current}${separator}${selectedValue}` : selectedValue;
+            setCreateBatchImageValue("create-duplicate-image-dropbox", state.selectedCreateProductIndex, nextValue);
+            target.value = nextValue;
           } else {
             const current = String(target.value || "").trim();
             const separator = state.browserTargetInputId === "create-duplicate-image-dropbox" && current && !current.endsWith(";") ? "; " : "\n";
@@ -973,7 +1041,7 @@ function renderBrowserEntries(entries) {
         } else {
           target.value = selectedValue;
         }
-        if (!(target.tagName === "TEXTAREA" && state.browserTargetInputId === "create-main-image-dropbox" && createProductInputLines().length > 1)) {
+        if (!(target.tagName === "TEXTAREA" && CREATE_BATCH_IMAGE_INPUTS[state.browserTargetInputId] && createProductInputLines().length > 1)) {
           target.dispatchEvent(new Event("input", { bubbles: true }));
           target.dispatchEvent(new Event("change", { bubbles: true }));
         }
@@ -1359,8 +1427,25 @@ function setMode(mode) {
 
 function bindEvents() {
   document.querySelectorAll("input, select, textarea").forEach((element) => {
-    element.addEventListener("input", render);
-    element.addEventListener("change", render);
+    element.addEventListener("input", () => {
+      if (CREATE_BATCH_IMAGE_INPUTS[element.id] && createProductInputLines().length > 1) return;
+      render();
+    });
+    element.addEventListener("change", () => {
+      if (CREATE_BATCH_IMAGE_INPUTS[element.id] && createProductInputLines().length > 1) return;
+      render();
+    });
+  });
+
+  Object.keys(CREATE_BATCH_IMAGE_INPUTS).forEach((inputId) => {
+    byId(inputId).addEventListener("input", () => {
+      if (createProductInputLines().length <= 1) {
+        render();
+        return;
+      }
+      setCreateBatchImageValue(inputId, state.selectedCreateProductIndex, byId(inputId).value);
+      render();
+    });
   });
 
   document.querySelectorAll(".mode-tab").forEach((tab) => {
@@ -1368,6 +1453,7 @@ function bindEvents() {
   });
 
   byId("create-import-input-line").addEventListener("input", () => {
+    resetCreateBatchImageState();
     const productLines = createProductInputLines();
     if (productLines.length <= 1) {
       const parsed = parseImportInputLine(productLines[0] || value("create-import-input-line"));
