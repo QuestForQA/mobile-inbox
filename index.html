@@ -13,7 +13,7 @@
       <header class="app-header">
         <div>
           <h1>PicNest Mobile Inbox</h1>
-          <p>Команды для PicNestInbox · v32</p>
+          <p>Команды для PicNestInbox · v33</p>
         </div>
         <button id="install-button" class="ghost-button" type="button" hidden>Установить</button>
       </header>
@@ -122,9 +122,12 @@
           <button id="clear-create-main-image" class="ghost-button clear-control" data-main-image-source-panel="phone" type="button">Удалить файл</button>
           <label data-main-image-source-panel="dropbox">
             <span>Main image from Dropbox</span>
-            <textarea id="create-main-image-dropbox" rows="3" autocomplete="off" placeholder="Для списка: один файл на строку из PicNestInbox/images"></textarea>
+            <textarea id="create-main-image-dropbox" rows="3" autocomplete="off" placeholder="Для списка: один файл на строку"></textarea>
           </label>
-          <button class="ghost-button clear-control choose-main-image-button" data-main-image-source-panel="dropbox" type="button" data-target-input="create-main-image-dropbox">Выбрать из Dropbox</button>
+          <div class="actions" data-main-image-source-panel="dropbox">
+            <button class="ghost-button clear-control choose-main-image-button" type="button" data-target-input="create-main-image-dropbox">Выбрать из Dropbox</button>
+            <button id="clear-create-main-image-dropbox" class="ghost-button clear-control" type="button">Удалить файл</button>
+          </div>
           <label data-main-image-source-panel="url">
             <span>Main image URL</span>
             <textarea id="create-main-image-url" rows="3" autocomplete="off" placeholder="Для списка товаров: один URL картинки на строку"></textarea>
@@ -145,7 +148,10 @@
             <span>Duplicate images from Dropbox</span>
             <textarea id="create-duplicate-image-dropbox" rows="3" placeholder="Для списка: одна строка на товар; несколько файлов через ;"></textarea>
           </label>
-          <button class="ghost-button clear-control choose-main-image-button" data-duplicate-image-source-panel="dropbox" type="button" data-target-input="create-duplicate-image-dropbox">Выбрать из Dropbox</button>
+          <div class="actions" data-duplicate-image-source-panel="dropbox">
+            <button class="ghost-button clear-control choose-main-image-button" type="button" data-target-input="create-duplicate-image-dropbox">Выбрать из Dropbox</button>
+            <button id="clear-create-duplicate-image-dropbox" class="ghost-button clear-control" type="button">Удалить файлы</button>
+          </div>
           <label data-duplicate-image-source-panel="url">
             <span>Duplicate image URLs</span>
             <textarea id="create-duplicate-image-urls" rows="3" placeholder="Один URL картинки на строку"></textarea>

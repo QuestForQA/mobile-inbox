@@ -122,6 +122,22 @@ function inboxImagePathFromFilename(filename) {
   return `images/${/\.[a-z0-9]{2,5}$/i.test(cleanFilename) ? cleanFilename : `${cleanFilename}.jpg`}`;
 }
 
+function dropboxImagePayload(selectedPath, targetFilename, file, suffix = "") {
+  const rawPath = String(selectedPath || "").trim();
+  const path = imagePathFromFilename(targetFilename, file || { name: rawPath }, suffix);
+  if (!rawPath) return { path };
+  if (rawPath.startsWith("/")) {
+    return {
+      path,
+      source_dropbox_path: rawPath,
+    };
+  }
+  return {
+    path,
+    source_dropbox_path: joinDropboxPath(inboxImagesRootPath(), rawPath.replace(/^images\//i, "")),
+  };
+}
+
 function productsRootPath() {
   const inboxPath = normalizeDropboxPath(value("dropbox-inbox-path"));
   return inboxPath.toLocaleLowerCase().includes("зп_test")
@@ -140,7 +156,7 @@ function inboxImagesRootPath() {
 function browserRootPathForTarget(targetInputId) {
   if (targetInputId === "move-main-image-filename") return statusBrowserRootPath();
   if (targetInputId === "create-main-image-dropbox" || targetInputId === "create-duplicate-image-dropbox") {
-    return inboxImagesRootPath();
+    return productsRootPath();
   }
   return statusBrowserRootPath();
 }
@@ -236,7 +252,7 @@ function buildCreateProductFromLine(
   } else if (mainSource === "dropbox" && mainImageDropbox) {
     images.push({
       image_key: "main",
-      path: inboxImagePathFromFilename(mainImageDropbox),
+      ...dropboxImagePayload(mainImageDropbox, filename),
       is_primary: true,
       is_look: false,
       look_role: "none",
@@ -267,7 +283,7 @@ function buildCreateProductFromLine(
     const imageKey = `duplicate-dropbox-${index + 1}`;
     images.push({
       image_key: imageKey,
-      path: inboxImagePathFromFilename(filenameValue),
+      ...dropboxImagePayload(filenameValue, filename, null, String(index + 2)),
       is_primary: false,
       is_look: false,
       look_role: "none",
@@ -926,12 +942,17 @@ function renderBrowserEntries(entries) {
       const filename = button.dataset.name || "";
       if (state.browserTargetInputId && filename) {
         const target = byId(state.browserTargetInputId);
+        const selectedValue = state.browserTargetInputId === "move-main-image-filename" ? filename : path;
         if (target.tagName === "TEXTAREA") {
-          const current = String(target.value || "").trim();
-          const separator = state.browserTargetInputId === "create-duplicate-image-dropbox" && current && !current.endsWith(";") ? "; " : "\n";
-          target.value = current ? `${current}${separator}${filename}` : filename;
+          if (state.browserTargetInputId === "create-main-image-dropbox") {
+            target.value = selectedValue;
+          } else {
+            const current = String(target.value || "").trim();
+            const separator = state.browserTargetInputId === "create-duplicate-image-dropbox" && current && !current.endsWith(";") ? "; " : "\n";
+            target.value = current ? `${current}${separator}${selectedValue}` : selectedValue;
+          }
         } else {
-          target.value = filename;
+          target.value = selectedValue;
         }
         target.dispatchEvent(new Event("input", { bubbles: true }));
         target.dispatchEvent(new Event("change", { bubbles: true }));
@@ -973,6 +994,10 @@ function openDropboxBrowser(targetInputId) {
   if (!["move-main-image-filename", "create-main-image-dropbox", "create-duplicate-image-dropbox"].includes(targetInputId)) return;
   state.browserTargetInputId = targetInputId;
   const browser = byId("dropbox-browser");
+  const target = byId(targetInputId);
+  const button = document.querySelector(`.choose-main-image-button[data-target-input="${targetInputId}"]`);
+  const anchor = button?.closest(".actions") || target?.closest("label");
+  if (anchor) anchor.after(browser);
   browser.hidden = false;
   browser.scrollIntoView({ block: "nearest" });
   void loadDropboxBrowserPath(browserRootPathForTarget(targetInputId));
@@ -1128,6 +1153,35 @@ async function saveUrlToDropbox({ token, dropboxPath, imageUrl }) {
   return result;
 }
 
+async function deleteDropboxPathIfExists({ token, dropboxPath }) {
+  try {
+    await dropboxApiRequest({
+      token,
+      endpoint: "files/delete_v2",
+      body: { path: dropboxPath },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!message.includes("not_found")) throw error;
+  }
+}
+
+async function copyDropboxFile({ token, fromPath, toPath }) {
+  if (normalizeDropboxPath(fromPath) === normalizeDropboxPath(toPath)) return null;
+  await deleteDropboxPathIfExists({ token, dropboxPath: toPath });
+  return dropboxApiRequest({
+    token,
+    endpoint: "files/copy_v2",
+    body: {
+      from_path: normalizeDropboxPath(fromPath),
+      to_path: normalizeDropboxPath(toPath),
+      allow_shared_folder: false,
+      autorename: false,
+      allow_ownership_transfer: false,
+    },
+  });
+}
+
 function httpHeaderSafeJson(valueObject) {
   return JSON.stringify(valueObject).replace(/[\u007f-\uffff]/g, (character) => (
     `\\u${character.charCodeAt(0).toString(16).padStart(4, "0")}`
@@ -1136,10 +1190,20 @@ function httpHeaderSafeJson(valueObject) {
 
 function prepareCommandForDropbox(command) {
   if (!command.payload?.images?.length) {
-    return { command, remoteSaves: [] };
+    return { command, remoteSaves: [], dropboxCopies: [] };
   }
   const remoteSaves = [];
+  const dropboxCopies = [];
   const nextImages = command.payload.images.map((image) => {
+    if (image.source_dropbox_path) {
+      dropboxCopies.push({
+        fromPath: image.source_dropbox_path,
+        relativePath: image.path,
+        imageKey: image.image_key,
+      });
+      const { source_dropbox_path: _sourceDropboxPath, ...nextImage } = image;
+      return nextImage;
+    }
     if (!image.url) return image;
     const relativePath = `images/${image.remote_filename || `${safeFilePart(image.image_key)}.jpg`}`;
     remoteSaves.push({
@@ -1162,6 +1226,7 @@ function prepareCommandForDropbox(command) {
       },
     },
     remoteSaves,
+    dropboxCopies,
   };
 }
 
@@ -1193,7 +1258,8 @@ async function sendCurrentCommandToDropbox() {
   }));
   const uploads = preparedItems.flatMap((item) => buildUploads(item.rawCommand));
   const remoteSaves = preparedItems.flatMap((item) => item.remoteSaves);
-  const total = uploads.length + remoteSaves.length + preparedItems.length;
+  const dropboxCopies = preparedItems.flatMap((item) => item.dropboxCopies);
+  const total = uploads.length + remoteSaves.length + dropboxCopies.length + preparedItems.length;
   const completed = [];
 
   byId("send-dropbox-button").disabled = true;
@@ -1220,6 +1286,16 @@ async function sendCurrentCommandToDropbox() {
       completed.push(`${dropboxPath} <- ${remoteSave.imageUrl}`);
       setStatus(`Отправляем в Dropbox: ${completed.length}/${total}\n${completed.join("\n")}`);
     }
+    for (const dropboxCopy of dropboxCopies) {
+      const dropboxPath = joinDropboxPath(inboxPath, dropboxCopy.relativePath);
+      await copyDropboxFile({
+        token,
+        fromPath: dropboxCopy.fromPath,
+        toPath: dropboxPath,
+      });
+      completed.push(`${dropboxPath} <- ${dropboxCopy.fromPath}`);
+      setStatus(`Отправляем в Dropbox: ${completed.length}/${total}\n${completed.join("\n")}`);
+    }
     for (const item of preparedItems) {
       const commandJson = JSON.stringify(item.command, null, 2);
       const commandPath = joinDropboxPath(inboxPath, `commands/${commandFileName(item.command)}`);
@@ -1232,7 +1308,7 @@ async function sendCurrentCommandToDropbox() {
       completed.push(commandPath);
       setStatus(`Отправляем в Dropbox: ${completed.length}/${total}\n${completed.join("\n")}`);
     }
-    setStatus(`Готово: ${completed.length}/${total}\nПроверь в Dropbox:\n${joinDropboxPath(inboxPath, "commands")}\n\nОтправленные файлы:\n${completed.map((path) => `- ${path}`).join("\n")}`);
+    setStatus(`Готово: ${completed.length}/${total}\nПроверь в Dropbox:\n${joinDropboxPath(inboxPath, "commands")}\n\nИзображения с телефона загружены файлами. Изображения из URL сохранены в Dropbox, изображения из Dropbox скопированы в PicNestInbox/images.\n\nЧто подготовлено:\n${completed.map((path) => `- ${path}`).join("\n")}`);
   } catch (error) {
     setStatus(error instanceof Error ? error.message : String(error), true);
   } finally {
@@ -1325,8 +1401,10 @@ function bindEvents() {
 
   [
     ["clear-create-main-image", "create-main-image"],
+    ["clear-create-main-image-dropbox", "create-main-image-dropbox"],
     ["clear-create-main-image-url", "create-main-image-url"],
     ["clear-create-duplicate-images", "create-duplicate-images"],
+    ["clear-create-duplicate-image-dropbox", "create-duplicate-image-dropbox"],
     ["clear-create-duplicate-image-urls", "create-duplicate-image-urls"],
     ["clear-add-images", "add-images"],
     ["clear-add-image-urls", "add-image-urls"],
