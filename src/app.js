@@ -1502,7 +1502,12 @@ async function sendCurrentCommandToDropbox() {
         blob: new Blob([commandJson], { type: "application/json;charset=utf-8" }),
         contentType: "application/octet-stream",
       });
-      completed.push(commandPath);
+      const metadata = await dropboxApiRequest({
+        token,
+        endpoint: "files/get_metadata",
+        body: { path: commandPath },
+      });
+      completed.push(metadata?.path_display || commandPath);
       setStatus(`Отправляем в Dropbox: ${completed.length}/${total}\n${completed.join("\n")}`);
     }
     setStatus(`Готово: ${completed.length}/${total}\nПроверь в Dropbox:\n${joinDropboxPath(inboxPath, "commands")}\n\nИзображения с телефона загружены файлами. Изображения из URL сохранены в Dropbox, изображения из Dropbox скопированы в PicNestInbox/images.\n\nЧто подготовлено:\n${completed.map((path) => `- ${path}`).join("\n")}`);
