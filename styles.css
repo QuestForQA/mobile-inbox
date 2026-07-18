@@ -156,6 +156,13 @@ textarea {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.plain-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 label {
   display: grid;
   gap: 6px;
@@ -195,6 +202,49 @@ label span {
   border-radius: 0;
   background: transparent;
   color: #344054;
+}
+
+.wishlist-track-rows {
+  display: grid;
+  gap: 14px;
+}
+
+.wishlist-track-row {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.wishlist-row-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.wishlist-size-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.wishlist-size-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid #d0d5dd;
+  border-radius: 999px;
+  background: #f9fafb;
+  color: #344054;
+  font-weight: 700;
+}
+
+.wishlist-size-chip input {
+  width: auto;
 }
 
 .source-choice-group input {

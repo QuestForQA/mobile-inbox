@@ -21,6 +21,7 @@
       <nav class="mode-tabs" aria-label="Тип команды">
         <button class="mode-tab active" type="button" data-mode="products">Товары</button>
         <button class="mode-tab" type="button" data-mode="create_product">Новый товар</button>
+        <button class="mode-tab" type="button" data-mode="wishlist_track_product">Вишлист</button>
         <button class="mode-tab" type="button" data-mode="move_status">Статус</button>
         <button class="mode-tab" type="button" data-mode="add_images">Картинки</button>
         <button class="mode-tab" type="button" data-mode="update_fields">Поля</button>
@@ -157,6 +158,16 @@
             <textarea id="create-duplicate-image-urls" rows="3" placeholder="Один URL картинки на строку"></textarea>
           </label>
           <button id="clear-create-duplicate-image-urls" class="ghost-button clear-control" data-duplicate-image-source-panel="url" type="button">Удалить URL</button>
+        </section>
+      </form>
+
+      <form id="wishlist-track-form" class="command-form" data-mode-panel="wishlist_track_product">
+        <section class="card">
+          <div class="card-title-row plain-title-row">
+            <h2>Отслеживать товары</h2>
+            <button id="wishlist-add-row-button" class="ghost-button small-button" type="button">Еще</button>
+          </div>
+          <div id="wishlist-track-rows" class="wishlist-track-rows"></div>
         </section>
       </form>
 

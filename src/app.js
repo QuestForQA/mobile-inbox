@@ -19,6 +19,7 @@ const state = {
   browserTargetInputId: "",
   browserCurrentPath: "",
   productsCurrentPath: "",
+  wishlistRowCount: 1,
   selectedCreateProductIndex: 0,
   createBatchImageProductCount: 0,
   createBatchImages: {
@@ -58,6 +59,13 @@ const CREATE_BATCH_IMAGE_INPUTS = {
   "create-main-image-url": "mainUrl",
   "create-duplicate-image-dropbox": "duplicateDropbox",
   "create-duplicate-image-urls": "duplicateUrls",
+};
+
+const WISHLIST_SIZE_OPTIONS = {
+  letter: ["XXS", "XS", "S", "M", "L", "XL", "XXL", "XXXL"],
+  even: ["34", "36", "38", "40", "42", "44", "46", "48", "50", "52", "54", "56"],
+  odd: ["11", "13", "15", "17", "19", "21", "23", "25", "27", "29", "31", "33", "35", "37", "39", "41", "43", "45", "47", "49", "51"],
+  one: ["OS"],
 };
 
 function byId(id) {
@@ -290,6 +298,28 @@ function commandIdForBatchItem(type, index, total) {
   return `${base}-${String(index + 1).padStart(2, "0")}`;
 }
 
+function wishlistRowElements() {
+  return Array.from(document.querySelectorAll(".wishlist-track-row"));
+}
+
+function selectedWishlistSizes(row) {
+  return Array.from(row.querySelectorAll(".wishlist-size-option:checked"))
+    .map((input) => String(input.value || "").trim())
+    .filter(Boolean);
+}
+
+function buildWishlistTrackProduct() {
+  const items = wishlistRowElements()
+    .map((row) => compactObject({
+      product_url: value(row.querySelector(".wishlist-url")?.id),
+      size_type: value(row.querySelector(".wishlist-size-type")?.id),
+      sizes: selectedWishlistSizes(row),
+      color: value(row.querySelector(".wishlist-color")?.id),
+    }))
+    .filter((item) => item.product_url);
+  return commandEnvelope("wishlist_track_product", compactObject({ items }));
+}
+
 function buildCreateProductFromLine(
   line,
   {
@@ -485,6 +515,7 @@ function buildUpdateFields() {
 }
 
 function buildCommand() {
+  if (state.mode === "wishlist_track_product") return buildWishlistTrackProduct();
   if (state.mode === "add_images") return buildAddImages();
   if (state.mode === "move_status") return buildMoveStatus();
   if (state.mode === "update_fields") return buildUpdateFields();
@@ -522,6 +553,69 @@ function commandHasImages(command) {
   return Array.isArray(command.payload?.images) && command.payload.images.length > 0;
 }
 
+function renderWishlistRows() {
+  const container = byId("wishlist-track-rows");
+  if (!container) return;
+  while (container.children.length < state.wishlistRowCount) {
+    const index = container.children.length;
+    const row = document.createElement("section");
+    row.className = "wishlist-track-row";
+    row.dataset.index = String(index);
+    row.innerHTML = `
+      <label class="wishlist-url-label">
+        <span>URL товара</span>
+        <input id="wishlist-url-${index}" class="wishlist-url" type="url" autocomplete="off" placeholder="https://site/product" />
+      </label>
+      <div class="wishlist-row-controls">
+        <label>
+          <span>Тип размера</span>
+          <select id="wishlist-size-type-${index}" class="wishlist-size-type">
+            <option value="letter">Буквенный</option>
+            <option value="even">Числовой четный</option>
+            <option value="odd">Числовой нечетный</option>
+            <option value="one">Единый размер</option>
+          </select>
+        </label>
+        <label>
+          <span>Цвет, если нужно</span>
+          <input id="wishlist-color-${index}" class="wishlist-color" type="text" autocomplete="off" placeholder="37 / Fucsia / Rosa" />
+        </label>
+      </div>
+      <div id="wishlist-sizes-${index}" class="wishlist-size-options"></div>
+    `;
+    container.append(row);
+    row.querySelectorAll("input, select").forEach((element) => {
+      element.addEventListener("input", render);
+      element.addEventListener("change", () => {
+        if (element.classList.contains("wishlist-size-type")) renderWishlistSizeOptions(row);
+        render();
+      });
+    });
+    renderWishlistSizeOptions(row);
+  }
+  while (container.children.length > state.wishlistRowCount) {
+    container.lastElementChild?.remove();
+  }
+}
+
+function renderWishlistSizeOptions(row) {
+  const index = row.dataset.index || "0";
+  const type = row.querySelector(".wishlist-size-type")?.value || "letter";
+  const selected = new Set(selectedWishlistSizes(row));
+  const container = byId(`wishlist-sizes-${index}`);
+  if (!container) return;
+  const options = WISHLIST_SIZE_OPTIONS[type] || WISHLIST_SIZE_OPTIONS.letter;
+  container.innerHTML = options.map((size) => `
+    <label class="wishlist-size-chip">
+      <input class="wishlist-size-option" type="checkbox" value="${size}" ${selected.has(size) ? "checked" : ""} />
+      <span>${size}</span>
+    </label>
+  `).join("");
+  container.querySelectorAll("input").forEach((input) => {
+    input.addEventListener("change", render);
+  });
+}
+
 function renderFilePlan(commands) {
   const filePlan = byId("file-plan");
   const rows = commands.flatMap((command) => {
@@ -541,6 +635,9 @@ function renderFilePlan(commands) {
 
 function render() {
   if (state.mode === "products") return;
+  if (state.mode === "wishlist_track_product") {
+    renderWishlistRows();
+  }
   const commands = buildCommands();
   const isCreateBatch = state.mode === "create_product" && commands.length > 1;
   document.querySelectorAll("[data-create-single-field]").forEach((element) => {
@@ -1487,6 +1584,10 @@ function bindEvents() {
   byId("check-dropbox-button").addEventListener("click", () => void checkDropboxConnection());
   byId("disconnect-dropbox-button").addEventListener("click", disconnectDropbox);
   byId("send-dropbox-button").addEventListener("click", () => void sendCurrentCommandToDropbox());
+  byId("wishlist-add-row-button")?.addEventListener("click", () => {
+    state.wishlistRowCount += 1;
+    render();
+  });
   byId("close-dropbox-browser").onclick = closeDropboxBrowser;
   byId("browser-up-button").addEventListener("click", () => {
     const rootPath = browserRootPathForTarget(state.browserTargetInputId);
