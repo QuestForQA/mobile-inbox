@@ -230,6 +230,12 @@ label span {
   gap: 8px;
 }
 
+.wishlist-add-row-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 2px;
+}
+
 .wishlist-size-chip {
   display: inline-flex;
   align-items: center;

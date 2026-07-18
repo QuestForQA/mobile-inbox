@@ -582,6 +582,9 @@ function renderWishlistRows() {
         </label>
       </div>
       <div id="wishlist-sizes-${index}" class="wishlist-size-options"></div>
+      <div class="wishlist-add-row-actions">
+        <button class="ghost-button small-button wishlist-add-row-button" type="button">Еще</button>
+      </div>
     `;
     container.append(row);
     row.querySelectorAll("input, select").forEach((element) => {
@@ -591,11 +594,19 @@ function renderWishlistRows() {
         render();
       });
     });
+    row.querySelector(".wishlist-add-row-button")?.addEventListener("click", () => {
+      state.wishlistRowCount += 1;
+      render();
+    });
     renderWishlistSizeOptions(row);
   }
   while (container.children.length > state.wishlistRowCount) {
     container.lastElementChild?.remove();
   }
+  Array.from(container.children).forEach((row, index) => {
+    const button = row.querySelector(".wishlist-add-row-button");
+    if (button) button.hidden = index !== container.children.length - 1;
+  });
 }
 
 function renderWishlistSizeOptions(row) {
@@ -1512,7 +1523,7 @@ function setMode(mode) {
     panel.classList.toggle("active", panel.dataset.modePanel === mode);
   });
   document.querySelectorAll(".command-only").forEach((element) => {
-    element.hidden = mode === "products";
+    element.hidden = mode === "products" || element.id === "dropbox-browser";
   });
   if (mode === "products") {
     void loadProductsPath(productsRootPath());
@@ -1584,10 +1595,6 @@ function bindEvents() {
   byId("check-dropbox-button").addEventListener("click", () => void checkDropboxConnection());
   byId("disconnect-dropbox-button").addEventListener("click", disconnectDropbox);
   byId("send-dropbox-button").addEventListener("click", () => void sendCurrentCommandToDropbox());
-  byId("wishlist-add-row-button")?.addEventListener("click", () => {
-    state.wishlistRowCount += 1;
-    render();
-  });
   byId("close-dropbox-browser").onclick = closeDropboxBrowser;
   byId("browser-up-button").addEventListener("click", () => {
     const rootPath = browserRootPathForTarget(state.browserTargetInputId);
