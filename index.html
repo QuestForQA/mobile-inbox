@@ -13,7 +13,7 @@
       <header class="app-header">
         <div>
           <h1>PicNest Mobile Inbox</h1>
-          <p>Команды для PicNestInbox · v39</p>
+          <p>Команды для PicNestInbox · v40</p>
         </div>
         <button id="install-button" class="ghost-button" type="button" hidden>Установить</button>
       </header>
@@ -25,6 +25,7 @@
         <button class="mode-tab" type="button" data-mode="move_status">Статус</button>
         <button class="mode-tab" type="button" data-mode="add_images">Картинки</button>
         <button class="mode-tab" type="button" data-mode="update_fields">Поля</button>
+        <button class="mode-tab" type="button" data-mode="update_tags">Теги</button>
       </nav>
 
       <details id="dropbox-card" class="card dropbox-card" open>
@@ -262,6 +263,24 @@
           <label>
             <span>composition_care_text</span>
             <textarea id="field-composition-care-text" rows="3"></textarea>
+          </label>
+        </section>
+      </form>
+
+      <form id="update-tags-form" class="command-form" data-mode-panel="update_tags">
+        <section class="card">
+          <h2>Добавить теги</h2>
+          <label>
+            <span>product_id</span>
+            <input id="tags-product-id" type="number" min="1" inputmode="numeric" />
+          </label>
+          <label>
+            <span>main_image_filename</span>
+            <input id="tags-main-image-filename" type="text" autocomplete="off" placeholder="Source Title params.jpg" />
+          </label>
+          <label>
+            <span>tags</span>
+            <textarea id="tags-list" rows="5" autocomplete="off" placeholder="Один тег на строку или через запятую"></textarea>
           </label>
         </section>
       </form>

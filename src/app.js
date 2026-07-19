@@ -537,11 +537,27 @@ function buildUpdateFields() {
   }));
 }
 
+function tagListValue(id) {
+  return String(byId(id)?.value || "")
+    .split(/[,;\n]+/)
+    .map((tag) => tag.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function buildUpdateTags() {
+  return commandEnvelope("update_tags", compactObject({
+    ...productLookupPayload("tags-product-id", "tags-main-image-filename"),
+    tags: tagListValue("tags-list"),
+    mode: "add",
+  }));
+}
+
 function buildCommand() {
   if (state.mode === "wishlist_track_product") return buildWishlistTrackProduct();
   if (state.mode === "add_images") return buildAddImages();
   if (state.mode === "move_status") return buildMoveStatus();
   if (state.mode === "update_fields") return buildUpdateFields();
+  if (state.mode === "update_tags") return buildUpdateTags();
   return buildCreateProductCommands()[0] || commandEnvelope("create_product", {});
 }
 
