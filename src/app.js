@@ -1458,6 +1458,7 @@ async function sendCurrentCommandToDropbox() {
   const dropboxCopies = preparedItems.flatMap((item) => item.dropboxCopies);
   const total = uploads.length + remoteSaves.length + dropboxCopies.length + preparedItems.length;
   const completed = [];
+  const commandPaths = [];
 
   byId("send-dropbox-button").disabled = true;
   try {
@@ -1507,6 +1508,7 @@ async function sendCurrentCommandToDropbox() {
         endpoint: "files/get_metadata",
         body: { path: commandPath },
       });
+      commandPaths.push(metadata?.path_display || commandPath);
       completed.push([
         metadata?.path_display || commandPath,
         metadata?.id ? `id=${metadata.id}` : "",
@@ -1514,7 +1516,23 @@ async function sendCurrentCommandToDropbox() {
       ].filter(Boolean).join(" · "));
       setStatus(`Отправляем в Dropbox: ${completed.length}/${total}\n${completed.join("\n")}`);
     }
-    setStatus(`Готово: ${completed.length}/${total}\nПроверь в Dropbox:\n${joinDropboxPath(inboxPath, "commands")}\n\nИзображения с телефона загружены файлами. Изображения из URL сохранены в Dropbox, изображения из Dropbox скопированы в PicNestInbox/images.\n\nЧто подготовлено:\n${completed.map((path) => `- ${path}`).join("\n")}`);
+    const commandsPath = joinDropboxPath(inboxPath, "commands");
+    const folderEntries = await listDropboxFolder(commandsPath);
+    const uploadedCommandNames = new Set(commandPaths.map((path) => normalizeDropboxPath(path).split("/").pop()));
+    const visibleUploadedCommands = folderEntries
+      .filter((entry) => uploadedCommandNames.has(String(entry.name || "")))
+      .map((entry) => entry.path_display || entry.name)
+      .filter(Boolean);
+    const imageMessage = uploads.length || remoteSaves.length || dropboxCopies.length
+      ? "\n\nИзображения с телефона загружены файлами. Изображения из URL сохранены в Dropbox, изображения из Dropbox скопированы в PicNestInbox/images."
+      : "";
+    setStatus(
+      `Готово: ${completed.length}/${total}\nПроверь в Dropbox:\n${commandsPath}`
+      + `\n\nПроверка commands через Dropbox API: найдено ${visibleUploadedCommands.length}/${commandPaths.length}`
+      + (visibleUploadedCommands.length ? `\n${visibleUploadedCommands.map((path) => `- ${path}`).join("\n")}` : "")
+      + imageMessage
+      + `\n\nЧто подготовлено:\n${completed.map((path) => `- ${path}`).join("\n")}`
+    );
   } catch (error) {
     setStatus(error instanceof Error ? error.message : String(error), true);
   } finally {
