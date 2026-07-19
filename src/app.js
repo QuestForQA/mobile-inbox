@@ -234,6 +234,29 @@ function resetCreateBatchImageState() {
   };
 }
 
+function clearActiveCommandFormAfterSend() {
+  if (state.mode === "products") return;
+  const panel = document.querySelector(`[data-mode-panel="${state.mode}"]`);
+  if (!panel) return;
+  panel.querySelectorAll("input, textarea").forEach((element) => {
+    if (element.type === "checkbox" || element.type === "radio") return;
+    element.value = "";
+  });
+  if (state.mode === "wishlist_track_product") {
+    state.wishlistRowCount = 1;
+    const container = byId("wishlist-track-rows");
+    if (container) {
+      container.innerHTML = "";
+      renderWishlistRows();
+    }
+  }
+  if (state.mode === "create_product") {
+    resetCreateBatchImageState();
+    state.selectedCreateProductIndex = 0;
+  }
+  resetCommandId();
+}
+
 function ensureCreateBatchImageState(total) {
   if (total <= 1) return;
   if (state.createBatchImageProductCount !== total) {
@@ -1533,6 +1556,7 @@ async function sendCurrentCommandToDropbox() {
       + imageMessage
       + `\n\nЧто подготовлено:\n${completed.map((path) => `- ${path}`).join("\n")}`
     );
+    clearActiveCommandFormAfterSend();
   } catch (error) {
     setStatus(error instanceof Error ? error.message : String(error), true);
   } finally {
