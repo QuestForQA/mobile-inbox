@@ -612,7 +612,7 @@ function renderWishlistRows() {
 function renderWishlistSizeOptions(row) {
   const index = row.dataset.index || "0";
   const type = row.querySelector(".wishlist-size-type")?.value || "letter";
-  const selected = new Set(selectedWishlistSizes(row));
+  const selected = new Set(type === "one" ? ["OS"] : selectedWishlistSizes(row));
   const container = byId(`wishlist-sizes-${index}`);
   if (!container) return;
   const options = WISHLIST_SIZE_OPTIONS[type] || WISHLIST_SIZE_OPTIONS.letter;
@@ -1507,7 +1507,11 @@ async function sendCurrentCommandToDropbox() {
         endpoint: "files/get_metadata",
         body: { path: commandPath },
       });
-      completed.push(metadata?.path_display || commandPath);
+      completed.push([
+        metadata?.path_display || commandPath,
+        metadata?.id ? `id=${metadata.id}` : "",
+        metadata?.rev ? `rev=${metadata.rev}` : "",
+      ].filter(Boolean).join(" · "));
       setStatus(`Отправляем в Dropbox: ${completed.length}/${total}\n${completed.join("\n")}`);
     }
     setStatus(`Готово: ${completed.length}/${total}\nПроверь в Dropbox:\n${joinDropboxPath(inboxPath, "commands")}\n\nИзображения с телефона загружены файлами. Изображения из URL сохранены в Dropbox, изображения из Dropbox скопированы в PicNestInbox/images.\n\nЧто подготовлено:\n${completed.map((path) => `- ${path}`).join("\n")}`);
