@@ -9,6 +9,7 @@ import {
   parseImportInputLine,
   remoteImageName,
   safeFilePart,
+  splitTitleAndParams,
   stripImportListMarker,
   stripTrailingPriceToken,
 } from "./picnestProtocol.mjs";
@@ -19,6 +20,7 @@ const state = {
   browserTargetInputId: "",
   browserCurrentPath: "",
   productsCurrentPath: "",
+  selectedProductFiles: [],
   wishlistRowCount: 1,
   selectedCreateProductIndex: 0,
   createBatchImageProductCount: 0,
@@ -184,6 +186,7 @@ function browserRootPathForTarget(targetInputId) {
   if (targetInputId === "create-main-image-dropbox" || targetInputId === "create-duplicate-image-dropbox") {
     return productsRootPath();
   }
+  if (targetInputId === "add-image-dropbox") return productsRootPath();
   return statusBrowserRootPath();
 }
 
@@ -203,14 +206,64 @@ function parentDropboxPath(path) {
   return `/${parts.slice(0, -1).join("/")}`;
 }
 
+function filenameFromDropboxPath(path) {
+  return String(path || "").replace(/\\/g, "/").split("/").filter(Boolean).pop() || "";
+}
+
+function normalizeMainImageFilename(filename) {
+  const clean = filenameFromDropboxPath(filename).trim();
+  if (!clean) return "";
+  return /\.[a-z0-9]{2,5}$/i.test(clean) ? clean : `${clean}.jpg`;
+}
+
+function filenameLinesFromInput(inputId) {
+  return String(byId(inputId)?.value || "")
+    .split(/\r?\n/)
+    .map(normalizeMainImageFilename)
+    .filter(Boolean);
+}
+
 function productLookupPayload(productIdInputId, filenameInputId) {
   const productId = Number(value(productIdInputId)) || undefined;
   if (productId) return { product_id: productId };
-  const filename = value(filenameInputId);
-  if (!filename) return {};
+  const filenames = filenameLinesFromInput(filenameInputId);
+  if (filenames.length > 1) return { main_image_filenames: filenames };
+  if (filenames.length === 1) return { main_image_filename: filenames[0] };
+  return {};
+}
+
+function parsePicNestFilename(filename) {
+  const stem = filenameFromDropboxPath(filename).replace(/\.[^.]+$/i, "").replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+  const sourceLabels = [
+    ["fashion-market", ["fashion market", "fashionmarket"]],
+    ["michael-kors", ["michael kors"]],
+    ["levi's", ["levi s", "levis"]],
+    ["intrend", ["intrend"]],
+    ["uniqlo", ["uniqlo"]],
+  ];
+  const lowerStem = stem.toLocaleLowerCase();
+  for (const [source, labels] of sourceLabels) {
+    const label = labels.find((candidate) => lowerStem === candidate || lowerStem.startsWith(`${candidate} `));
+    if (!label) continue;
+    const rest = stem.slice(label.length).trim();
+    const split = splitTitleAndParams(rest);
+    return {
+      source,
+      title: split.title || rest,
+      userParams: split.userParams,
+    };
+  }
+  const split = splitTitleAndParams(stem);
   return {
-    main_image_filename: /\.[a-z0-9]{2,5}$/i.test(filename) ? filename : `${filename}.jpg`,
+    source: "",
+    title: split.title,
+    userParams: split.userParams,
   };
+}
+
+function importLineFromProductFilename(filename) {
+  const parsed = parsePicNestFilename(filename);
+  return [parsed.title, parsed.userParams].filter(Boolean).join(" ").trim() || filenameFromDropboxPath(filename);
 }
 
 function commandEnvelope(type, payload) {
@@ -355,9 +408,13 @@ function buildCreateProductFromLine(
   } = {}
 ) {
   const parsed = parseImportInputLine(line);
-  const title = stripTrailingPriceToken(total === 1 ? (value("create-title") || parsed.title) : parsed.title);
-  const userParams = total === 1 ? (value("create-user-params") || parsed.userParams) : parsed.userParams;
-  const filename = generatePicNestFilename(parsed.source, title, userParams);
+  const filenameFallback = parsePicNestFilename(mainImageDropbox);
+  const source = parsed.source || filenameFallback.source;
+  const fallbackTitle = parsed.title || filenameFallback.title;
+  const fallbackUserParams = parsed.userParams || filenameFallback.userParams;
+  const title = stripTrailingPriceToken(total === 1 ? (value("create-title") || fallbackTitle) : fallbackTitle);
+  const userParams = total === 1 ? (value("create-user-params") || fallbackUserParams) : fallbackUserParams;
+  const filename = generatePicNestFilename(source, title, userParams);
   const mainSource = checkedValue("create-main-image-source", "phone");
   const duplicateSource = checkedValue("create-duplicate-image-source", "phone");
   const mainImage = total === 1 && mainSource === "phone" ? (files("create-main-image")[0] || null) : null;
@@ -428,7 +485,7 @@ function buildCreateProductFromLine(
   const payload = compactObject({
     source_url: parsed.sourceUrl,
     import_input_line: parsed.importInputLine,
-    source: parsed.source,
+    source,
     title,
     user_params: userParams,
     target_status: value("create-target-status") || "buy",
@@ -480,6 +537,7 @@ function buildAddImages() {
   const commandId = value("command-id");
   const selectedFiles = files("add-images");
   const selectedUrls = lines("add-image-urls");
+  const selectedDropboxFiles = lines("add-image-dropbox");
   const images = selectedFiles.map((file, index) => {
     const imageKey = `duplicate-${index + 1}`;
     return {
@@ -489,6 +547,15 @@ function buildAddImages() {
       is_look: false,
       look_role: "none",
     };
+  });
+  selectedDropboxFiles.forEach((dropboxFile, index) => {
+    images.push({
+      image_key: `duplicate-dropbox-${index + 1}`,
+      ...dropboxImagePayload(dropboxFile, filenameFromDropboxPath(dropboxFile) || `duplicate-dropbox-${index + 1}.jpg`, null, String(index + 1)),
+      is_primary: false,
+      is_look: false,
+      look_role: "none",
+    });
   });
   selectedUrls.forEach((url, index) => {
     images.push({
@@ -1227,7 +1294,7 @@ async function loadDropboxBrowserPath(path) {
 }
 
 function openDropboxBrowser(targetInputId) {
-  if (!["move-main-image-filename", "create-main-image-dropbox", "create-duplicate-image-dropbox"].includes(targetInputId)) return;
+  if (!["move-main-image-filename", "create-main-image-dropbox", "create-duplicate-image-dropbox", "add-image-dropbox"].includes(targetInputId)) return;
   state.browserTargetInputId = targetInputId;
   const browser = byId("dropbox-browser");
   const target = byId(targetInputId);
@@ -1250,6 +1317,117 @@ function setProductsStatus(message, isError = false) {
   const element = byId("products-status");
   element.textContent = message;
   element.classList.toggle("error", isError);
+}
+
+function selectedProductFiles() {
+  return state.selectedProductFiles.slice();
+}
+
+function selectedProductNames() {
+  return selectedProductFiles().map((entry) => entry.name).filter(Boolean);
+}
+
+function selectedProductPaths() {
+  return selectedProductFiles().map((entry) => entry.path).filter(Boolean);
+}
+
+function clearProductSelection() {
+  state.selectedProductFiles = [];
+  updateProductBulkButtons();
+}
+
+function setProductSelectionFromCheckboxes() {
+  state.selectedProductFiles = Array.from(document.querySelectorAll(".product-file-checkbox:checked"))
+    .map((input) => ({
+      name: input.dataset.name || "",
+      path: input.dataset.path || "",
+    }))
+    .filter((entry) => entry.name && entry.path);
+  updateProductBulkButtons();
+}
+
+function updateProductBulkButtons() {
+  const count = state.selectedProductFiles.length;
+  [
+    "products-copy-names-button",
+    "products-new-product-button",
+    "products-move-status-button",
+    "products-add-images-button",
+    "products-update-tags-button",
+  ].forEach((buttonId) => {
+    const button = byId(buttonId);
+    if (button) button.disabled = count === 0;
+  });
+  const fieldsButton = byId("products-update-fields-button");
+  if (fieldsButton) fieldsButton.disabled = count !== 1;
+}
+
+async function copySelectedProductNames() {
+  const text = selectedProductNames().join("\n");
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    setProductsStatus(`Скопировано файлов: ${selectedProductNames().length}`);
+  } catch {
+    setProductsStatus(text);
+  }
+}
+
+function setExclusiveChecked(name, valueText) {
+  document.querySelectorAll(`input[name="${name}"]`).forEach((input) => {
+    input.checked = input.value === valueText;
+  });
+}
+
+function openCreateProductFromSelectedFiles() {
+  const filesToUse = selectedProductFiles();
+  if (!filesToUse.length) return;
+  setMode("create_product");
+  setExclusiveChecked("create-main-image-source", "dropbox");
+  updateCreateImageSourcePanels();
+  resetCreateBatchImageState();
+  byId("create-import-input-line").value = filesToUse.map((entry) => importLineFromProductFilename(entry.name)).join("\n");
+  byId("create-main-image-dropbox").value = filesToUse.map((entry) => entry.path).join("\n");
+  byId("create-title").value = "";
+  byId("create-user-params").value = "";
+  render();
+  setStatus("Добавьте URL товара в начало каждой строки import_input_line. URL сопоставляются с выбранными картинками по порядку строк.");
+}
+
+function openMoveStatusFromSelectedFiles() {
+  const names = selectedProductNames();
+  if (!names.length) return;
+  setMode("move_status");
+  byId("move-product-id").value = "";
+  byId("move-main-image-filename").value = names.join("\n");
+  render();
+}
+
+function openAddImagesFromSelectedFiles() {
+  const paths = selectedProductPaths();
+  if (!paths.length) return;
+  setMode("add_images");
+  byId("add-image-dropbox").value = paths.join("\n");
+  render();
+  setStatus("Заполните товар, к которому нужно добавить выбранные картинки дублями.");
+}
+
+function openUpdateFieldsFromSelectedFiles() {
+  const names = selectedProductNames();
+  if (names.length !== 1) return;
+  setMode("update_fields");
+  byId("update-product-id").value = "";
+  byId("update-main-image-filename").value = names[0];
+  render();
+}
+
+function openUpdateTagsFromSelectedFiles() {
+  const names = selectedProductNames();
+  if (!names.length) return;
+  setMode("update_tags");
+  byId("tags-product-id").value = "";
+  byId("tags-main-image-filename").value = names.join("\n");
+  render();
 }
 
 function renderProductsEntries(entries, token) {
@@ -1299,11 +1477,17 @@ function renderProductsEntries(entries, token) {
   imageGrid.className = "products-image-grid";
   images.forEach((entry) => {
     const path = entry.path_display || entry.path_lower || "";
-    const button = document.createElement("button");
-    button.className = "product-image-card";
-    button.type = "button";
-    button.dataset.path = path;
-    button.dataset.name = entry.name || "";
+    const card = document.createElement("article");
+    card.className = "product-image-card";
+    card.dataset.path = path;
+    card.dataset.name = entry.name || "";
+
+    const checkbox = document.createElement("input");
+    checkbox.className = "product-file-checkbox";
+    checkbox.type = "checkbox";
+    checkbox.dataset.path = path;
+    checkbox.dataset.name = entry.name || "";
+    checkbox.setAttribute("aria-label", `Выбрать ${entry.name || "файл"}`);
 
     const preview = document.createElement("div");
     preview.className = "product-image-preview";
@@ -1312,10 +1496,16 @@ function renderProductsEntries(entries, token) {
     const name = document.createElement("span");
     name.className = "product-image-name";
     name.textContent = entry.name || "";
-    button.append(preview, name);
+    card.append(checkbox, preview, name);
 
-    button.addEventListener("click", () => {
-      setProductsStatus(`Выбран товар: ${button.dataset.name || "—"}`);
+    checkbox.addEventListener("change", () => {
+      setProductSelectionFromCheckboxes();
+      setProductsStatus(`Выбрано файлов: ${state.selectedProductFiles.length}`);
+    });
+    card.addEventListener("click", (event) => {
+      if (event.target === checkbox) return;
+      checkbox.checked = !checkbox.checked;
+      checkbox.dispatchEvent(new Event("change", { bubbles: true }));
     });
 
     if (path) {
@@ -1332,14 +1522,16 @@ function renderProductsEntries(entries, token) {
           preview.textContent = "Нет превью";
         });
     }
-    imageGrid.append(button);
+    imageGrid.append(card);
   });
   list.append(imageGrid);
+  updateProductBulkButtons();
 }
 
 async function loadProductsPath(path = "") {
   const nextPath = path ? normalizeDropboxPath(path) : productsRootPath();
   state.productsCurrentPath = nextPath;
+  clearProductSelection();
   byId("products-current-path").textContent = nextPath;
   byId("products-list").innerHTML = "";
   setProductsStatus("Загружаю список товаров...");
@@ -1676,6 +1868,12 @@ function bindEvents() {
   byId("products-refresh-button").addEventListener("click", () => {
     void loadProductsPath(state.productsCurrentPath || productsRootPath());
   });
+  byId("products-copy-names-button").addEventListener("click", () => void copySelectedProductNames());
+  byId("products-new-product-button").addEventListener("click", openCreateProductFromSelectedFiles);
+  byId("products-move-status-button").addEventListener("click", openMoveStatusFromSelectedFiles);
+  byId("products-add-images-button").addEventListener("click", openAddImagesFromSelectedFiles);
+  byId("products-update-fields-button").addEventListener("click", openUpdateFieldsFromSelectedFiles);
+  byId("products-update-tags-button").addEventListener("click", openUpdateTagsFromSelectedFiles);
 
   document.querySelectorAll(".choose-main-image-button").forEach((button) => {
     button.addEventListener("click", () => openDropboxBrowser(button.dataset.targetInput || ""));
@@ -1689,6 +1887,7 @@ function bindEvents() {
     ["clear-create-duplicate-image-dropbox", "create-duplicate-image-dropbox"],
     ["clear-create-duplicate-image-urls", "create-duplicate-image-urls"],
     ["clear-add-images", "add-images"],
+    ["clear-add-image-dropbox", "add-image-dropbox"],
     ["clear-add-image-urls", "add-image-urls"],
     ["clear-move-main-image-filename", "move-main-image-filename"],
   ].forEach(([buttonId, inputId]) => {

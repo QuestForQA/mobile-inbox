@@ -464,6 +464,16 @@ textarea {
   overflow: visible;
 }
 
+.product-bulk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.product-bulk-actions button {
+  flex: 1 1 140px;
+}
+
 .browser-entry {
   display: flex;
   align-items: center;
@@ -519,6 +529,7 @@ textarea {
 }
 
 .product-image-card {
+  position: relative;
   display: grid;
   gap: 8px;
   width: 100%;
@@ -529,6 +540,21 @@ textarea {
   color: #111827;
   text-align: left;
   cursor: pointer;
+}
+
+.product-file-checkbox {
+  position: absolute;
+  z-index: 1;
+  top: 8px;
+  left: 8px;
+  width: 22px;
+  height: 22px;
+  accent-color: #111827;
+}
+
+.product-image-card:has(.product-file-checkbox:checked) {
+  border-color: #111827;
+  box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.1);
 }
 
 .product-image-preview {

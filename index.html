@@ -13,7 +13,7 @@
       <header class="app-header">
         <div>
           <h1>PicNest Mobile Inbox</h1>
-          <p>Команды для PicNestInbox · v40</p>
+          <p>Команды для PicNestInbox · v41</p>
         </div>
         <button id="install-button" class="ghost-button" type="button" hidden>Установить</button>
       </header>
@@ -188,6 +188,14 @@
           </label>
           <button id="clear-add-images" class="ghost-button clear-control" type="button">Удалить файлы</button>
           <label>
+            <span>Duplicate images from Dropbox</span>
+            <textarea id="add-image-dropbox" rows="3" placeholder="Один файл Dropbox на строку"></textarea>
+          </label>
+          <div class="actions">
+            <button class="ghost-button clear-control choose-main-image-button" type="button" data-target-input="add-image-dropbox">Выбрать из Dropbox</button>
+            <button id="clear-add-image-dropbox" class="ghost-button clear-control" type="button">Удалить Dropbox-файлы</button>
+          </div>
+          <label>
             <span>Duplicate image URLs</span>
             <textarea id="add-image-urls" rows="3" placeholder="Один URL картинки на строку"></textarea>
           </label>
@@ -204,7 +212,7 @@
           </label>
           <label>
             <span>main_image_filename</span>
-            <input id="move-main-image-filename" type="text" autocomplete="off" placeholder="Source Title params.jpg" />
+            <textarea id="move-main-image-filename" rows="3" autocomplete="off" placeholder="Для списка: один файл на строку"></textarea>
           </label>
           <div class="actions">
             <button class="ghost-button clear-control choose-main-image-button" type="button" data-target-input="move-main-image-filename">Выбрать из Dropbox</button>
@@ -276,7 +284,7 @@
           </label>
           <label>
             <span>main_image_filename</span>
-            <input id="tags-main-image-filename" type="text" autocomplete="off" placeholder="Source Title params.jpg" />
+            <textarea id="tags-main-image-filename" rows="3" autocomplete="off" placeholder="Для списка: один файл на строку"></textarea>
           </label>
           <label>
             <span>tags</span>
@@ -294,6 +302,14 @@
             <button id="products-refresh-button" class="ghost-button small-button" type="button">Обновить</button>
           </div>
           <div id="products-status" class="inline-status">—</div>
+          <div class="product-bulk-actions">
+            <button id="products-copy-names-button" class="ghost-button small-button" type="button" disabled>Скопировать название</button>
+            <button id="products-new-product-button" class="ghost-button small-button" type="button" disabled>Новый товар</button>
+            <button id="products-move-status-button" class="ghost-button small-button" type="button" disabled>Изменить статус</button>
+            <button id="products-add-images-button" class="ghost-button small-button" type="button" disabled>Добавить картинки</button>
+            <button id="products-update-fields-button" class="ghost-button small-button" type="button" disabled>Изменить поля</button>
+            <button id="products-update-tags-button" class="ghost-button small-button" type="button" disabled>Добавить теги</button>
+          </div>
           <div id="products-list" class="browser-list"></div>
         </section>
       </section>
