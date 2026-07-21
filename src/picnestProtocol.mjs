@@ -65,7 +65,11 @@ export function sanitizeFilenamePart(text) {
 }
 
 export function stripTrailingPriceToken(text) {
-  const tokens = String(text || "").trim().split(/\s+/).filter(Boolean);
+  const withoutPrice = String(text || "")
+    .replace(/\s+\d+(?:[,.]\d+|\s+\d+)?\s*(?:€|eur|e|е)\s*$/i, "")
+    .trim();
+  if (!withoutPrice) return "";
+  const tokens = withoutPrice.split(/\s+/).filter(Boolean);
   if (tokens.length === 0) return "";
   const lastToken = tokens[tokens.length - 1].replace(/[.,;:!?)\]}]+$/g, "");
   if (!lastToken) return tokens.slice(0, -1).join(" ");
@@ -94,7 +98,7 @@ export function isLoosePriceToken(token) {
 }
 
 export function isSizeToken(token) {
-  const valueText = String(token || "").trim();
+  const valueText = String(token || "").trim().replace(/[Мм]/g, "M");
   if (!valueText) return false;
   return (
     /^(xxs|xs|s|m|l|xl|xxl|xxxl)$/i.test(valueText)
@@ -111,6 +115,30 @@ export function isUppercaseParamWord(token) {
 
 export function stripDuplicatePrefix(text, prefixes) {
   let result = String(text || "").trim();
+
+  const tokenMatchKey = (value) => String(value || "")
+    .normalize("NFKC")
+    .toLocaleLowerCase()
+    .replace(/м/g, "m")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+
+  const stripOverlappingTitleSuffix = (current, prefix) => {
+    const currentTokens = String(current || "").trim().split(/\s+/).filter(Boolean);
+    const prefixTokens = String(prefix || "").trim().split(/\s+/).filter(Boolean);
+    if (!currentTokens.length || !prefixTokens.length) return current;
+    const currentKeys = currentTokens.map(tokenMatchKey);
+    const prefixKeys = prefixTokens.map(tokenMatchKey);
+    const maxOverlap = Math.min(currentKeys.length, prefixKeys.length);
+    for (let overlap = maxOverlap; overlap > 0; overlap -= 1) {
+      if (currentKeys.slice(0, overlap).join("\u0000") !== prefixKeys.slice(-overlap).join("\u0000")) {
+        continue;
+      }
+      return currentTokens.slice(overlap).join(" ").trim();
+    }
+    return current;
+  };
+
   for (const prefix of prefixes) {
     const normalizedPrefix = String(prefix || "").trim();
     if (!normalizedPrefix) continue;
@@ -118,6 +146,8 @@ export function stripDuplicatePrefix(text, prefixes) {
       const candidate = result.slice(normalizedPrefix.length).trim();
       if (candidate) result = candidate;
     }
+    const overlapped = stripOverlappingTitleSuffix(result, normalizedPrefix);
+    if (overlapped !== result) result = overlapped;
   }
   return result;
 }
@@ -274,7 +304,10 @@ export function splitTitleAndParams(text) {
     const sizeIndex = findLastIndex(beforePrice, (token) => isSizeToken(token));
     if (sizeIndex > 0) {
       let paramStart = sizeIndex;
-      while (paramStart > 0 && isUppercaseParamWord(tokens[paramStart - 1])) {
+      while (
+        paramStart > 0 &&
+        (isUppercaseParamWord(tokens[paramStart - 1]) || /^\d{1,3}$/.test(tokens[paramStart - 1]))
+      ) {
         paramStart -= 1;
       }
       if (paramStart === sizeIndex) {
@@ -325,12 +358,13 @@ export function parseImportInputLine(line) {
     .trim();
   const split = splitTitleAndParams(rest);
   const fallbackTitle = titleFromUrlSlug(sourceUrl);
+  const cleanUserParams = paramsWithoutPrice(stripDuplicatePrefix(split.userParams, [split.title || fallbackTitle]));
   return {
     importInputLine: cleanLine,
     sourceUrl,
     source: inferSourceFromUrl(sourceUrl),
-    title: titleWithParamsWithoutPrice(split.title || fallbackTitle, split.userParams),
-    userParams: split.userParams,
+    title: titleWithParamsWithoutPrice(split.title || fallbackTitle, cleanUserParams),
+    userParams: cleanUserParams,
   };
 }
 

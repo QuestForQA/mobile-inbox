@@ -25,8 +25,10 @@ const state = {
   selectedCreateProductIndex: 0,
   createBatchImageProductCount: 0,
   createBatchImages: {
+    mainPhone: [],
     mainDropbox: [],
     mainUrl: [],
+    duplicatePhone: [],
     duplicateDropbox: [],
     duplicateUrls: [],
   },
@@ -280,8 +282,10 @@ function createProductInputLines() {
 function resetCreateBatchImageState() {
   state.createBatchImageProductCount = 0;
   state.createBatchImages = {
+    mainPhone: [],
     mainDropbox: [],
     mainUrl: [],
+    duplicatePhone: [],
     duplicateDropbox: [],
     duplicateUrls: [],
   };
@@ -319,6 +323,14 @@ function ensureCreateBatchImageState(total) {
       const source = previous.some(Boolean) ? previous : fromField;
       state.createBatchImages[key] = Array.from({ length: total }, (_, index) => source[index] || "");
     });
+    state.createBatchImages.mainPhone = Array.from(
+      { length: total },
+      (_, index) => state.createBatchImages.mainPhone?.[index] || []
+    );
+    state.createBatchImages.duplicatePhone = Array.from(
+      { length: total },
+      (_, index) => state.createBatchImages.duplicatePhone?.[index] || []
+    );
     state.createBatchImageProductCount = total;
   }
 }
@@ -333,13 +345,56 @@ function setCreateBatchImageValue(inputId, index, nextValue) {
 
 function syncCreateBatchImageFields(total) {
   if (state.mode !== "create_product") return;
-  if (total <= 1) return;
+  if (total > 1) {
+    ensureCreateBatchImageState(total);
+    Object.entries(CREATE_BATCH_IMAGE_INPUTS).forEach(([inputId, key]) => {
+      const input = byId(inputId);
+      if (!input) return;
+      input.value = state.createBatchImages[key][state.selectedCreateProductIndex] || "";
+    });
+  }
+  renderCreatePhoneFileSelection(total);
+}
+
+function currentCreateMainPhoneFiles(total) {
+  if (total <= 1) {
+    return state.createBatchImages.mainPhone[0] || files("create-main-image");
+  }
   ensureCreateBatchImageState(total);
-  Object.entries(CREATE_BATCH_IMAGE_INPUTS).forEach(([inputId, key]) => {
-    const input = byId(inputId);
-    if (!input) return;
-    input.value = state.createBatchImages[key][state.selectedCreateProductIndex] || "";
-  });
+  return state.createBatchImages.mainPhone[state.selectedCreateProductIndex] || [];
+}
+
+function currentCreateDuplicatePhoneFiles(total) {
+  if (total <= 1) {
+    return state.createBatchImages.duplicatePhone[0] || files("create-duplicate-images");
+  }
+  ensureCreateBatchImageState(total);
+  return state.createBatchImages.duplicatePhone[state.selectedCreateProductIndex] || [];
+}
+
+function renderCreatePhoneFileSelection(total = createProductInputLines().length) {
+  const mainTarget = byId("create-main-image-selected");
+  const duplicateTarget = byId("create-duplicate-images-selected");
+  const productLabel = total > 1 ? `Товар ${state.selectedCreateProductIndex + 1}: ` : "";
+  const mainFiles = currentCreateMainPhoneFiles(total);
+  const duplicateFiles = currentCreateDuplicatePhoneFiles(total);
+  if (mainTarget) mainTarget.textContent = mainFiles.length ? `${productLabel}${mainFiles.map((file) => file.name).join(", ")}` : `${productLabel}main не выбран`;
+  if (duplicateTarget) duplicateTarget.textContent = duplicateFiles.length ? `${productLabel}${duplicateFiles.map((file) => file.name).join(", ")}` : `${productLabel}дубли не выбраны`;
+}
+
+function handleCreatePhoneFilesSelected(inputId) {
+  const selectedFiles = files(inputId);
+  const total = createProductInputLines().length || 1;
+  ensureCreateBatchImageState(Math.max(total, 1));
+  if (inputId === "create-main-image") {
+    state.createBatchImages.mainPhone[state.selectedCreateProductIndex] = selectedFiles.slice(0, 1);
+  }
+  if (inputId === "create-duplicate-images") {
+    state.createBatchImages.duplicatePhone[state.selectedCreateProductIndex] = selectedFiles;
+  }
+  const input = byId(inputId);
+  if (input) input.value = "";
+  render();
 }
 
 function createProductMainImageUrls() {
@@ -405,6 +460,8 @@ function buildCreateProductFromLine(
     mainImageDropbox = "",
     duplicateDropboxFiles = [],
     duplicateImageUrls = [],
+    mainPhoneFiles = [],
+    duplicatePhoneFiles = [],
   } = {}
 ) {
   const parsed = parseImportInputLine(line);
@@ -417,8 +474,8 @@ function buildCreateProductFromLine(
   const filename = generatePicNestFilename(source, title, userParams);
   const mainSource = checkedValue("create-main-image-source", "phone");
   const duplicateSource = checkedValue("create-duplicate-image-source", "phone");
-  const mainImage = total === 1 && mainSource === "phone" ? (files("create-main-image")[0] || null) : null;
-  const duplicateImages = total === 1 && duplicateSource === "phone" ? files("create-duplicate-images") : [];
+  const mainImage = mainSource === "phone" ? (mainPhoneFiles[0] || null) : null;
+  const duplicateImages = duplicateSource === "phone" ? duplicatePhoneFiles : [];
   const images = [];
 
   if (mainImage) {
@@ -514,20 +571,30 @@ function buildCreateProductCommands() {
     mainImageDropbox: total === 1 ? (lines("create-main-image-dropbox")[0] || value("create-main-image-dropbox")) : (state.createBatchImages.mainDropbox[index] || imageDropboxFiles[index] || ""),
     duplicateDropboxFiles: total === 1 ? splitImageListLine(value("create-duplicate-image-dropbox")) : splitImageListLine(state.createBatchImages.duplicateDropbox[index] || duplicateDropboxGroups[index]?.join("; ") || ""),
     duplicateImageUrls: total === 1 ? lines("create-duplicate-image-urls") : splitImageListLine(state.createBatchImages.duplicateUrls[index] || duplicateUrlGroups[index]?.join("; ") || ""),
+    mainPhoneFiles: total === 1 ? currentCreateMainPhoneFiles(total) : (state.createBatchImages.mainPhone[index] || []),
+    duplicatePhoneFiles: total === 1 ? currentCreateDuplicatePhoneFiles(total) : (state.createBatchImages.duplicatePhone[index] || []),
   }));
 }
 
 function buildCreateProductUploads(command) {
-  if (buildCreateProductCommands().length > 1) return [];
   const filename = generatePicNestFilename(command.payload.source, command.payload.title, command.payload.user_params);
-  const mainImage = files("create-main-image")[0] || null;
-  const duplicateImages = files("create-duplicate-images");
-  const uploads = [];
-  if (mainImage && command.payload.images?.[0]?.path) {
-    uploads.push({ relativePath: command.payload.images[0].path, blob: mainImage });
+  const imageByPath = new Map();
+  for (const image of command.payload.images || []) {
+    if (image.path) imageByPath.set(image.image_key, image.path);
   }
-  duplicateImages.forEach((file, index) => {
-    const relativePath = imagePathFromFilename(filename, file, String(index + 2));
+  const total = createProductInputLines().length || 1;
+  const commandIndex = buildCommands().findIndex((item) => item.command_id === command.command_id);
+  const itemIndex = commandIndex >= 0 ? commandIndex : 0;
+  const mainFiles = total === 1 ? currentCreateMainPhoneFiles(total) : (state.createBatchImages.mainPhone[itemIndex] || []);
+  const duplicateFiles = total === 1 ? currentCreateDuplicatePhoneFiles(total) : (state.createBatchImages.duplicatePhone[itemIndex] || []);
+  const mainImage = mainFiles[0] || null;
+  const uploads = [];
+  if (mainImage && imageByPath.get("main")) {
+    uploads.push({ relativePath: imageByPath.get("main"), blob: mainImage });
+  }
+  duplicateFiles.forEach((file, index) => {
+    const imageKey = `duplicate-${index + 1}`;
+    const relativePath = imageByPath.get(imageKey) || imagePathFromFilename(filename, file, String(index + 2));
     uploads.push({ relativePath, blob: file });
   });
   return uploads;
@@ -650,7 +717,7 @@ function selectedImagePlan(command) {
   return (command.payload.images || []).map((image) => ({
     key: image.image_key,
     role: roleByKey[image.image_key] || (image.is_primary ? "main" : "дубль"),
-    path: image.path || (image.remote_filename ? `images/${image.remote_filename}` : image.url),
+    path: image.path || image.source_dropbox_path || (image.remote_filename ? `images/${image.remote_filename}` : image.url),
     url: image.url || "",
   }));
 }
@@ -884,6 +951,15 @@ function clearInput(inputId) {
   const element = byId(inputId);
   if (!element) return;
   element.value = "";
+  const total = createProductInputLines().length;
+  if (state.mode === "create_product" && inputId === "create-main-image") {
+    ensureCreateBatchImageState(Math.max(total, 1));
+    state.createBatchImages.mainPhone[state.selectedCreateProductIndex] = [];
+  }
+  if (state.mode === "create_product" && inputId === "create-duplicate-images") {
+    ensureCreateBatchImageState(Math.max(total, 1));
+    state.createBatchImages.duplicatePhone[state.selectedCreateProductIndex] = [];
+  }
   if (CREATE_BATCH_IMAGE_INPUTS[inputId] && createProductInputLines().length > 1) {
     setCreateBatchImageValue(inputId, state.selectedCreateProductIndex, "");
   }
@@ -1382,14 +1458,15 @@ function setExclusiveChecked(name, valueText) {
 function openCreateProductFromSelectedFiles() {
   const filesToUse = selectedProductFiles();
   if (!filesToUse.length) return;
+  const firstParsedFilename = parsePicNestFilename(filesToUse[0].name);
   setMode("create_product");
   setExclusiveChecked("create-main-image-source", "dropbox");
   updateCreateImageSourcePanels();
   resetCreateBatchImageState();
   byId("create-import-input-line").value = filesToUse.map((entry) => importLineFromProductFilename(entry.name)).join("\n");
   byId("create-main-image-dropbox").value = filesToUse.map((entry) => entry.path).join("\n");
-  byId("create-title").value = "";
-  byId("create-user-params").value = "";
+  byId("create-title").value = filesToUse.length === 1 ? firstParsedFilename.title : "";
+  byId("create-user-params").value = filesToUse.length === 1 ? firstParsedFilename.userParams : "";
   render();
   setStatus("Добавьте URL товара в начало каждой строки import_input_line. URL сопоставляются с выбранными картинками по порядку строк.");
 }
@@ -1624,12 +1701,7 @@ function prepareCommandForDropbox(command) {
   const dropboxCopies = [];
   const nextImages = command.payload.images.map((image) => {
     if (image.source_dropbox_path) {
-      dropboxCopies.push({
-        fromPath: image.source_dropbox_path,
-        relativePath: image.path,
-        imageKey: image.image_key,
-      });
-      const { source_dropbox_path: _sourceDropboxPath, ...nextImage } = image;
+      const { path: _path, ...nextImage } = image;
       return nextImage;
     }
     if (!image.url) return image;
@@ -1754,14 +1826,10 @@ async function sendCurrentCommandToDropbox() {
       .filter((entry) => uploadedCommandNames.has(String(entry.name || "")))
       .map((entry) => entry.path_display || entry.name)
       .filter(Boolean);
-    const imageMessage = uploads.length || remoteSaves.length || dropboxCopies.length
-      ? "\n\nИзображения с телефона загружены файлами. Изображения из URL сохранены в Dropbox, изображения из Dropbox скопированы в PicNestInbox/images."
-      : "";
     setStatus(
       `Готово: ${completed.length}/${total}\nПроверь в Dropbox:\n${commandsPath}`
       + `\n\nПроверка commands через Dropbox API: найдено ${visibleUploadedCommands.length}/${commandPaths.length}`
       + (visibleUploadedCommands.length ? `\n${visibleUploadedCommands.map((path) => `- ${path}`).join("\n")}` : "")
-      + imageMessage
       + `\n\nЧто подготовлено:\n${completed.map((path) => `- ${path}`).join("\n")}`
     );
     clearActiveCommandFormAfterSend();
@@ -1835,6 +1903,8 @@ function bindEvents() {
 
   bindExclusiveCheckboxGroup("create-main-image-source", "phone");
   bindExclusiveCheckboxGroup("create-duplicate-image-source", "phone");
+  byId("create-main-image").addEventListener("change", () => handleCreatePhoneFilesSelected("create-main-image"));
+  byId("create-duplicate-images").addEventListener("change", () => handleCreatePhoneFilesSelected("create-duplicate-images"));
 
   byId("copy-json-button").addEventListener("click", async () => {
     await navigator.clipboard.writeText(byId("json-output").textContent || "{}");

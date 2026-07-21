@@ -465,13 +465,23 @@ textarea {
 }
 
 .product-bulk-actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
 
 .product-bulk-actions button {
-  flex: 1 1 140px;
+  min-height: 46px;
+  height: 100%;
+  padding: 9px 8px;
+  line-height: 1.15;
+  white-space: normal;
+}
+
+@media (max-width: 430px) {
+  .product-bulk-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .browser-entry {

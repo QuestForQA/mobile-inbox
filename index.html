@@ -13,7 +13,7 @@
       <header class="app-header">
         <div>
           <h1>PicNest Mobile Inbox</h1>
-          <p>Команды для PicNestInbox · v42</p>
+          <p>Команды для PicNestInbox · v44</p>
         </div>
         <button id="install-button" class="ghost-button" type="button" hidden>Установить</button>
       </header>
@@ -121,6 +121,7 @@
             <span>Main image</span>
             <input id="create-main-image" type="file" accept="image/*" />
           </label>
+          <div id="create-main-image-selected" class="inline-status" data-main-image-source-panel="phone">—</div>
           <button id="clear-create-main-image" class="ghost-button clear-control" data-main-image-source-panel="phone" type="button">Удалить файл</button>
           <label data-main-image-source-panel="dropbox">
             <span>Main image from Dropbox</span>
@@ -145,6 +146,7 @@
             <span>Duplicate images</span>
             <input id="create-duplicate-images" type="file" accept="image/*" multiple />
           </label>
+          <div id="create-duplicate-images-selected" class="inline-status" data-duplicate-image-source-panel="phone">—</div>
           <button id="clear-create-duplicate-images" class="ghost-button clear-control" data-duplicate-image-source-panel="phone" type="button">Удалить файлы</button>
           <label data-duplicate-image-source-panel="dropbox">
             <span>Duplicate images from Dropbox</span>
@@ -173,7 +175,7 @@
 
       <form id="add-images-form" class="command-form" data-mode-panel="add_images">
         <section class="card">
-          <h2>Добавить картинки</h2>
+          <h2>Добавить дублирующие картинки</h2>
           <label>
             <span>product_id</span>
             <input id="add-product-id" type="number" min="1" inputmode="numeric" />
