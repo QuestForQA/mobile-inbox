@@ -12,7 +12,7 @@ import {
   splitTitleAndParams,
   stripImportListMarker,
   stripTrailingPriceToken,
-} from "./picnestProtocol.mjs?v=59";
+} from "./picnestProtocol.mjs?v=61";
 
 const state = {
   mode: "products",
@@ -592,6 +592,8 @@ function buildCreateProductFromLine(
     title,
     user_params: userParams,
     target_status: value("create-target-status") || "buy",
+    order_id: value("create-order-id"),
+    buyer: value("create-buyer"),
     images,
   });
 
@@ -705,6 +707,8 @@ function buildMoveStatus() {
   return commandEnvelope("move_status", compactObject({
     ...productLookupPayload("move-product-id", "move-main-image-filename"),
     to_status: value("move-to-status"),
+    order_id: value("move-order-id"),
+    buyer: value("move-buyer"),
   }));
 }
 
@@ -878,6 +882,33 @@ function render() {
   syncCreateBatchImageFields(commands.length);
   syncCreateProductEditorFields(createProductInputLines());
   renderParsedCreateFields(commands[state.selectedCreateProductIndex] || commands[0]);
+  updateOrderFieldRequirements();
+}
+
+function updateOrderFieldRequirements() {
+  [
+    ["create-target-status", "create-order-id", "create-buyer"],
+    ["move-to-status", "move-order-id", "move-buyer"],
+  ].forEach(([statusId, orderId, buyerId]) => {
+    const required = value(statusId) !== "buy";
+    [orderId, buyerId].forEach((inputId) => {
+      const input = byId(inputId);
+      if (!input) return;
+      input.required = required;
+      input.closest("label")?.classList.toggle("required-field", required);
+    });
+  });
+}
+
+function validateOrderFieldsForCommands(commands) {
+  const invalid = commands.filter((command) => {
+    const payload = command.payload || {};
+    const targetStatus = payload.target_status || payload.to_status;
+    if (!targetStatus || targetStatus === "buy") return false;
+    return !String(payload.order_id || "").trim() || !String(payload.buyer || "").trim();
+  });
+  if (!invalid.length) return "";
+  return "Для статусов кроме 'На выкупе' обязательны order_id и buyer";
 }
 
 function renderParsedCreateFields(command) {
@@ -886,8 +917,13 @@ function renderParsedCreateFields(command) {
     byId("parsed-source-url").textContent = "—";
     byId("parsed-source").textContent = "—";
     byId("parsed-filename").textContent = "—";
+    byId("parsed-main-image").textContent = "—";
+    byId("parsed-duplicates").textContent = "—";
     return;
   }
+  const images = command.payload.images || [];
+  const mainImage = images.find((image) => image.is_primary);
+  const duplicateImages = images.filter((image) => !image.is_primary);
   byId("parsed-source-url").textContent = command.payload.source_url || "—";
   byId("parsed-source").textContent = command.payload.source || "—";
   byId("parsed-filename").textContent = generatePicNestFilename(
@@ -895,6 +931,8 @@ function renderParsedCreateFields(command) {
     command.payload.title,
     command.payload.user_params
   );
+  byId("parsed-main-image").textContent = mainImage?.path || mainImage?.url || "—";
+  byId("parsed-duplicates").textContent = duplicateImages.map((image) => image.path || image.url).join("; ") || "—";
 }
 
 function renderCreateBatchProductsPanel(commands = buildCreateProductCommands()) {
@@ -1776,6 +1814,11 @@ async function sendCurrentCommandToDropbox() {
     setStatus("Нет команд для отправки.", true);
     return;
   }
+  const orderFieldsError = validateOrderFieldsForCommands(rawCommands);
+  if (orderFieldsError) {
+    setStatus(orderFieldsError, true);
+    return;
+  }
   const commandsWithoutImages = rawCommands.filter((command) => command.type === "create_product" && !commandHasImages(command));
   if (commandsWithoutImages.length) {
     setStatus(
@@ -1945,11 +1988,22 @@ function bindEvents() {
   byId("create-duplicate-images").addEventListener("change", () => handleCreatePhoneFilesSelected("create-duplicate-images"));
 
   byId("copy-json-button").addEventListener("click", async () => {
+    const commands = buildCommands();
+    const orderFieldsError = validateOrderFieldsForCommands(commands);
+    if (orderFieldsError) {
+      setStatus(orderFieldsError, true);
+      return;
+    }
     await navigator.clipboard.writeText(byId("json-output").textContent || "{}");
   });
 
   byId("download-json-button").addEventListener("click", () => {
     const commands = buildCommands();
+    const orderFieldsError = validateOrderFieldsForCommands(commands);
+    if (orderFieldsError) {
+      setStatus(orderFieldsError, true);
+      return;
+    }
     if (commands.length === 1) {
       downloadText(commandFileName(commands[0]), JSON.stringify(commands[0], null, 2));
       return;

@@ -31,7 +31,7 @@
       <header class="app-header">
         <div>
           <h1>PicNest Mobile Inbox</h1>
-          <p>Команды для PicNestInbox · v59</p>
+          <p>Команды для PicNestInbox · v61</p>
         </div>
         <button id="install-button" class="ghost-button" type="button" hidden>Установить</button>
       </header>
@@ -106,6 +106,16 @@
               <option value="arrived">Приехало</option>
             </select>
           </label>
+          <div class="grid two">
+            <label>
+              <span>order_id</span>
+              <input id="create-order-id" type="text" autocomplete="off" />
+            </label>
+            <label>
+              <span>buyer</span>
+              <input id="create-buyer" type="text" autocomplete="off" />
+            </label>
+          </div>
           <section id="create-batch-products-panel" class="batch-products-panel" hidden>
             <div id="create-batch-product-tabs" class="batch-product-tabs"></div>
           </section>
@@ -121,6 +131,8 @@
             <div><strong>source_url</strong><span id="parsed-source-url">—</span></div>
             <div><strong>source</strong><span id="parsed-source">—</span></div>
             <div><strong>filename</strong><span id="parsed-filename">—</span></div>
+            <div><strong>main image</strong><span id="parsed-main-image">—</span></div>
+            <div><strong>duplicates</strong><span id="parsed-duplicates">—</span></div>
           </div>
         </section>
 
@@ -246,6 +258,16 @@
               <option value="cancelled">Отмена</option>
             </select>
           </label>
+          <div class="grid two">
+            <label>
+              <span>order_id</span>
+              <input id="move-order-id" type="text" autocomplete="off" />
+            </label>
+            <label>
+              <span>buyer</span>
+              <input id="move-buyer" type="text" autocomplete="off" />
+            </label>
+          </div>
         </section>
       </form>
 
@@ -350,6 +372,6 @@
       </section>
     </main>
 
-    <script type="module" src="./src/app.js?v=59"></script>
+    <script type="module" src="./src/app.js?v=61"></script>
   </body>
 </html>
