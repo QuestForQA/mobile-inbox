@@ -361,8 +361,26 @@ function colorHintFromUrl(url) {
   return tokens.slice(-2).join(" ");
 }
 
+function splitReplacementParams(text) {
+  const normalized = String(text || "").trim().replace(/\s+/g, " ");
+  if (!normalized) return null;
+  const tokens = normalized.split(" ");
+  const markerIndex = tokens.findIndex((token, index) => (
+    token.toLocaleLowerCase() === "на" && tokens[index + 1]?.toLocaleLowerCase() === "замену"
+  ));
+  if (markerIndex <= 0 || markerIndex + 2 >= tokens.length) return null;
+  const before = tokens.slice(0, markerIndex).join(" ").trim();
+  const after = stripTrailingPriceToken(tokens.slice(markerIndex + 2).join(" ")).trim();
+  if (!before || !after) return null;
+  if (!isSizeToken(before.split(/\s+/).slice(-1)[0]) && !before.match(/\p{L}/u)) return null;
+  if (!isSizeToken(after.split(/\s+/)[0]) && !after.match(/\p{L}/u)) return null;
+  return { title: "", userParams: normalized };
+}
+
 function splitTitleAndParamsWithUrlHint(text, sourceUrl) {
   const normalized = String(text || "").trim().replace(/\s+/g, " ");
+  const replacementSplit = splitReplacementParams(normalized);
+  if (replacementSplit) return replacementSplit;
   const tokens = normalized.split(" ").filter(Boolean);
   const slugTokens = slugTokensFromUrl(sourceUrl);
   if (tokens.length < 4 || slugTokens.length === 0) return splitTitleAndParams(normalized);

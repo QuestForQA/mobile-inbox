@@ -12,7 +12,7 @@ import {
   splitTitleAndParams,
   stripImportListMarker,
   stripTrailingPriceToken,
-} from "./picnestProtocol.mjs?v=56";
+} from "./picnestProtocol.mjs?v=58";
 
 const state = {
   mode: "products",
@@ -31,6 +31,10 @@ const state = {
     duplicatePhone: [],
     duplicateDropbox: [],
     duplicateUrls: [],
+  },
+  createBatchFields: {
+    title: [],
+    userParams: [],
   },
 };
 
@@ -289,6 +293,10 @@ function resetCreateBatchImageState() {
     duplicateDropbox: [],
     duplicateUrls: [],
   };
+  state.createBatchFields = {
+    title: [],
+    userParams: [],
+  };
 }
 
 function clearActiveCommandFormAfterSend() {
@@ -333,6 +341,42 @@ function ensureCreateBatchImageState(total) {
     );
     state.createBatchImageProductCount = total;
   }
+}
+
+function parsedCreateProductFields(line) {
+  const parsed = parseImportInputLine(line);
+  return {
+    title: parsed.title,
+    userParams: parsed.userParams,
+  };
+}
+
+function resetCreateBatchFields(lines) {
+  state.createBatchFields = {
+    title: lines.map((line) => parsedCreateProductFields(line).title),
+    userParams: lines.map((line) => parsedCreateProductFields(line).userParams),
+  };
+}
+
+function syncCreateProductEditorFields(linesForProducts = createProductInputLines()) {
+  if (state.mode !== "create_product") return;
+  const titleInput = byId("create-title");
+  const paramsInput = byId("create-user-params");
+  if (!titleInput || !paramsInput) return;
+  if (linesForProducts.length > 1) {
+    ensureCreateBatchImageState(linesForProducts.length);
+    state.selectedCreateProductIndex = Math.min(state.selectedCreateProductIndex, linesForProducts.length - 1);
+    const parsed = parsedCreateProductFields(linesForProducts[state.selectedCreateProductIndex] || "");
+    titleInput.value = state.createBatchFields.title[state.selectedCreateProductIndex] || parsed.title;
+    paramsInput.value = state.createBatchFields.userParams[state.selectedCreateProductIndex] || parsed.userParams;
+  }
+}
+
+function setSelectedCreateProductField(field, valueText) {
+  const productLines = createProductInputLines();
+  if (productLines.length <= 1) return;
+  ensureCreateBatchImageState(productLines.length);
+  state.createBatchFields[field][state.selectedCreateProductIndex] = valueText;
 }
 
 function setCreateBatchImageValue(inputId, index, nextValue) {
@@ -469,8 +513,10 @@ function buildCreateProductFromLine(
   const source = parsed.source || filenameFallback.source;
   const fallbackTitle = parsed.title || filenameFallback.title;
   const fallbackUserParams = parsed.userParams || filenameFallback.userParams;
-  const title = stripTrailingPriceToken(total === 1 ? (value("create-title") || fallbackTitle) : fallbackTitle);
-  const userParams = total === 1 ? (value("create-user-params") || fallbackUserParams) : fallbackUserParams;
+  const batchTitle = state.createBatchFields.title[index] || fallbackTitle;
+  const batchUserParams = state.createBatchFields.userParams[index] || fallbackUserParams;
+  const title = stripTrailingPriceToken(total === 1 ? (value("create-title") || fallbackTitle) : batchTitle);
+  const userParams = total === 1 ? (value("create-user-params") || fallbackUserParams) : batchUserParams;
   const filename = generatePicNestFilename(source, title, userParams);
   const mainSource = checkedValue("create-main-image-source", "phone");
   const duplicateSource = checkedValue("create-duplicate-image-source", "phone");
@@ -564,6 +610,9 @@ function buildCreateProductCommands() {
   const duplicateUrlGroups = createProductDuplicateUrlGroups();
   const total = productLines.length;
   ensureCreateBatchImageState(total);
+  if (total > 1 && state.createBatchFields.title.length !== total) {
+    resetCreateBatchFields(productLines);
+  }
   return productLines.map((line, index) => buildCreateProductFromLine(line, {
     index,
     total,
@@ -823,15 +872,12 @@ function render() {
     renderWishlistRows();
   }
   const commands = buildCommands();
-  const isCreateBatch = state.mode === "create_product" && commands.length > 1;
-  document.querySelectorAll("[data-create-single-field]").forEach((element) => {
-    element.hidden = isCreateBatch;
-  });
   byId("json-output").textContent = JSON.stringify(commands.length === 1 ? commands[0] : commands, null, 2);
   renderFilePlan(commands);
   renderCreateBatchProductsPanel(commands);
   syncCreateBatchImageFields(commands.length);
-  renderParsedCreateFields(commands[0]);
+  syncCreateProductEditorFields(createProductInputLines());
+  renderParsedCreateFields(commands[state.selectedCreateProductIndex] || commands[0]);
 }
 
 function renderParsedCreateFields(command) {
@@ -1863,10 +1909,14 @@ function setMode(mode) {
 function bindEvents() {
   document.querySelectorAll("input, select, textarea").forEach((element) => {
     element.addEventListener("input", () => {
+      if (element.id === "create-title") setSelectedCreateProductField("title", element.value);
+      if (element.id === "create-user-params") setSelectedCreateProductField("userParams", element.value);
       if (CREATE_BATCH_IMAGE_INPUTS[element.id] && createProductInputLines().length > 1) return;
       render();
     });
     element.addEventListener("change", () => {
+      if (element.id === "create-title") setSelectedCreateProductField("title", element.value);
+      if (element.id === "create-user-params") setSelectedCreateProductField("userParams", element.value);
       if (CREATE_BATCH_IMAGE_INPUTS[element.id] && createProductInputLines().length > 1) return;
       render();
     });
@@ -1895,8 +1945,10 @@ function bindEvents() {
       byId("create-title").value = parsed.title;
       byId("create-user-params").value = parsed.userParams;
     } else {
-      byId("create-title").value = "";
-      byId("create-user-params").value = "";
+      resetCreateBatchFields(productLines);
+      state.selectedCreateProductIndex = 0;
+      byId("create-title").value = state.createBatchFields.title[0] || "";
+      byId("create-user-params").value = state.createBatchFields.userParams[0] || "";
     }
     render();
   });
