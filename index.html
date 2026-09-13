@@ -31,7 +31,7 @@
       <header class="app-header">
         <div>
           <h1>PicNest Mobile Inbox</h1>
-          <p>Команды для PicNestInbox · v58</p>
+          <p>Команды для PicNestInbox · v59</p>
         </div>
         <button id="install-button" class="ghost-button" type="button" hidden>Установить</button>
       </header>
@@ -95,6 +95,10 @@
         <section class="card">
           <h2>Новый товар</h2>
           <label>
+            <span>import_input_line</span>
+            <textarea id="create-import-input-line" rows="4" required placeholder="https://site/product Название цвет размер цена"></textarea>
+          </label>
+          <label>
             <span>target_status</span>
             <select id="create-target-status">
               <option value="buy">На выкуп</option>
@@ -102,10 +106,9 @@
               <option value="arrived">Приехало</option>
             </select>
           </label>
-          <label>
-            <span>import_input_line</span>
-            <textarea id="create-import-input-line" rows="4" required placeholder="https://site/product Название цвет размер цена"></textarea>
-          </label>
+          <section id="create-batch-products-panel" class="batch-products-panel" hidden>
+            <div id="create-batch-product-tabs" class="batch-product-tabs"></div>
+          </section>
           <label>
             <span>title</span>
             <input id="create-title" type="text" autocomplete="off" placeholder="Заполнится из строки, можно поправить" />
@@ -119,10 +122,6 @@
             <div><strong>source</strong><span id="parsed-source">—</span></div>
             <div><strong>filename</strong><span id="parsed-filename">—</span></div>
           </div>
-          <section id="create-batch-products-panel" class="batch-products-panel" hidden>
-            <div id="create-batch-product-tabs" class="batch-product-tabs"></div>
-            <div id="create-batch-product-details" class="batch-product-details"></div>
-          </section>
         </section>
 
         <section class="card">
@@ -351,6 +350,6 @@
       </section>
     </main>
 
-    <script type="module" src="./src/app.js?v=58"></script>
+    <script type="module" src="./src/app.js?v=59"></script>
   </body>
 </html>

@@ -12,7 +12,7 @@ import {
   splitTitleAndParams,
   stripImportListMarker,
   stripTrailingPriceToken,
-} from "./picnestProtocol.mjs?v=58";
+} from "./picnestProtocol.mjs?v=59";
 
 const state = {
   mode: "products",
@@ -900,8 +900,7 @@ function renderParsedCreateFields(command) {
 function renderCreateBatchProductsPanel(commands = buildCreateProductCommands()) {
   const panel = byId("create-batch-products-panel");
   const tabs = byId("create-batch-product-tabs");
-  const details = byId("create-batch-product-details");
-  if (!panel || !tabs || !details || commands.length <= 1) {
+  if (!panel || !tabs || commands.length <= 1) {
     if (panel) panel.hidden = true;
     return;
   }
@@ -920,19 +919,6 @@ function renderCreateBatchProductsPanel(commands = buildCreateProductCommands())
     });
     tabs.append(button);
   });
-
-  const command = commands[state.selectedCreateProductIndex];
-  const mainImage = (command.payload.images || []).find((image) => image.is_primary);
-  const duplicateImages = (command.payload.images || []).filter((image) => !image.is_primary);
-  details.innerHTML = `
-    <div><strong>title</strong><span>${command.payload.title || "—"}</span></div>
-    <div><strong>user_params</strong><span>${command.payload.user_params || "—"}</span></div>
-    <div><strong>source_url</strong><span>${command.payload.source_url || "—"}</span></div>
-    <div><strong>source</strong><span>${command.payload.source || "—"}</span></div>
-    <div><strong>filename</strong><span>${generatePicNestFilename(command.payload.source, command.payload.title, command.payload.user_params)}</span></div>
-    <div><strong>main image</strong><span>${mainImage?.path || mainImage?.url || "—"}</span></div>
-    <div><strong>duplicates</strong><span>${duplicateImages.map((image) => image.path || image.url).join("; ") || "—"}</span></div>
-  `;
 }
 
 function downloadText(filename, text) {
