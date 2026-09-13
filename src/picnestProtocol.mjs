@@ -66,7 +66,7 @@ export function sanitizeFilenamePart(text) {
 
 export function stripTrailingPriceToken(text) {
   const withoutPrice = String(text || "")
-    .replace(/\s+\d+(?:[,.]\d+|\s+\d+)?\s*(?:€|eur|e|е)\s*$/i, "")
+    .replace(/\s+\d+(?:[,.]\d+)?\s*(?:€|eur|e|е)\s*$/i, "")
     .trim();
   if (!withoutPrice) return "";
   const tokens = withoutPrice.split(/\s+/).filter(Boolean);
@@ -76,7 +76,7 @@ export function stripTrailingPriceToken(text) {
   if (/^\d+([.,]\d{1,2})?[eEеЕ]$/.test(lastToken) || /^[€$₽]$/.test(lastToken.slice(-1))) {
     return tokens.slice(0, -1).join(" ");
   }
-  if (tokens.length >= 3 && /^\d+([.,]\d{1,2})?$/.test(lastToken)) {
+  if (tokens.length >= 3 && /^\d+([.,]\d{1,2})?$/.test(lastToken) && !isSizeToken(lastToken)) {
     return tokens.slice(0, -1).join(" ");
   }
   return tokens.join(" ");
@@ -188,8 +188,8 @@ export function generatePicNestFilename(source, title, userParams, uniqueSuffix 
   const normalizedTitle = normalizeTitleForFilename(title, source);
   const titlePart = sanitizeFilenamePart(stripTrailingPriceToken(normalizedTitle));
   let cleanedParams = sanitizeFilenameText(stripDuplicatePrefix(
-    stripTrailingPriceToken(userParams).split(/\s+/).filter((token) => !isLoosePriceToken(token)).join(" "),
-    [source, normalizedTitle]
+    stripTrailingPriceToken(userParams).split(/\s+/).filter((token) => !isPriceToken(token)).join(" "),
+    [source, titlePart || normalizedTitle]
   ));
   if (cleanedParams === "Untitled") cleanedParams = "";
   if (cleanedParams && titlePart.toLocaleLowerCase().endsWith(cleanedParams.toLocaleLowerCase())) {
@@ -348,6 +348,37 @@ export function splitTitleAndParams(text) {
   return { title: normalized, userParams: "" };
 }
 
+function slugTokensFromUrl(url) {
+  return titleFromUrlSlug(url)
+    .toLocaleLowerCase()
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+function splitTitleAndParamsWithUrlHint(text, sourceUrl) {
+  const normalized = String(text || "").trim().replace(/\s+/g, " ");
+  const tokens = normalized.split(" ").filter(Boolean);
+  const slugTokens = slugTokensFromUrl(sourceUrl);
+  if (tokens.length < 4 || slugTokens.length === 0) return splitTitleAndParams(normalized);
+
+  const priceIndex = findLastIndex(tokens, (token) => isPriceToken(token) || isLoosePriceToken(token));
+  if (priceIndex <= 1) return splitTitleAndParams(normalized);
+  const sizeIndex = findLastIndex(tokens.slice(0, priceIndex), (token) => isSizeToken(token));
+  if (sizeIndex <= 0) return splitTitleAndParams(normalized);
+
+  const slugKey = slugTokens.join(" ");
+  for (let paramStart = 1; paramStart < sizeIndex; paramStart += 1) {
+    const colorKey = tokens.slice(paramStart, sizeIndex).join(" ").toLocaleLowerCase();
+    if (!colorKey || !slugKey.includes(colorKey)) continue;
+    return {
+      title: tokens.slice(0, paramStart).join(" ").trim(),
+      userParams: tokens.slice(paramStart).join(" ").trim(),
+    };
+  }
+
+  return splitTitleAndParams(normalized);
+}
+
 export function parseImportInputLine(line) {
   const cleanLine = stripImportListMarker(line);
   const sourceUrl = extractUrl(cleanLine);
@@ -356,9 +387,9 @@ export function parseImportInputLine(line) {
     .replace(/[+|]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-  const split = splitTitleAndParams(rest);
+  const split = splitTitleAndParamsWithUrlHint(rest, sourceUrl);
   const fallbackTitle = titleFromUrlSlug(sourceUrl);
-  const cleanUserParams = paramsWithoutPrice(stripDuplicatePrefix(split.userParams, [split.title || fallbackTitle]));
+  const cleanUserParams = stripDuplicatePrefix(split.userParams, [split.title || fallbackTitle]).trim();
   return {
     importInputLine: cleanLine,
     sourceUrl,
