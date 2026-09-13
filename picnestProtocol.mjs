@@ -394,7 +394,7 @@ export function parseImportInputLine(line) {
     importInputLine: cleanLine,
     sourceUrl,
     source: inferSourceFromUrl(sourceUrl),
-    title: stripTrailingPriceToken(split.title || fallbackTitle).trim(),
+    title: titleWithParamsWithoutPrice(split.title || fallbackTitle, cleanUserParams),
     userParams: cleanUserParams,
   };
 }
