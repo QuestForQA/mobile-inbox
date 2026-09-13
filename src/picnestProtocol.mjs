@@ -355,6 +355,12 @@ function slugTokensFromUrl(url) {
     .filter(Boolean);
 }
 
+function colorHintFromUrl(url) {
+  const tokens = slugTokensFromUrl(url);
+  if (tokens.length < 2) return "";
+  return tokens.slice(-2).join(" ");
+}
+
 function splitTitleAndParamsWithUrlHint(text, sourceUrl) {
   const normalized = String(text || "").trim().replace(/\s+/g, " ");
   const tokens = normalized.split(" ").filter(Boolean);
@@ -389,12 +395,17 @@ export function parseImportInputLine(line) {
     .trim();
   const split = splitTitleAndParamsWithUrlHint(rest, sourceUrl);
   const fallbackTitle = titleFromUrlSlug(sourceUrl);
-  const cleanUserParams = stripDuplicatePrefix(split.userParams, [split.title || fallbackTitle]).trim();
+  const restTokens = rest.split(/\s+/).filter(Boolean);
+  const restHasOnlyParams = restTokens.length > 0 && restTokens.every((token) => looksLikeParamToken(token) || isLoosePriceToken(token));
+  const urlColorHint = restHasOnlyParams ? colorHintFromUrl(sourceUrl) : "";
+  const rawUserParams = [urlColorHint, split.userParams].filter(Boolean).join(" ").trim();
+  const cleanUserParams = stripDuplicatePrefix(rawUserParams, restHasOnlyParams ? [] : [split.title || fallbackTitle]).trim();
+  const titleParams = restHasOnlyParams ? split.userParams : cleanUserParams;
   return {
     importInputLine: cleanLine,
     sourceUrl,
     source: inferSourceFromUrl(sourceUrl),
-    title: titleWithParamsWithoutPrice(split.title || fallbackTitle, cleanUserParams),
+    title: titleWithParamsWithoutPrice(split.title || fallbackTitle, titleParams),
     userParams: cleanUserParams,
   };
 }
