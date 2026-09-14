@@ -31,7 +31,7 @@
       <header class="app-header">
         <div>
           <h1>PicNest Mobile Inbox</h1>
-          <p>Команды для PicNestInbox · v61</p>
+          <p>Команды для PicNestInbox · v62</p>
         </div>
         <button id="install-button" class="ghost-button" type="button" hidden>Установить</button>
       </header>
@@ -104,6 +104,7 @@
               <option value="buy">На выкуп</option>
               <option value="ordered">Едет</option>
               <option value="arrived">Приехало</option>
+              <option value="received">Получено</option>
             </select>
           </label>
           <div class="grid two">
@@ -113,7 +114,7 @@
             </label>
             <label>
               <span>buyer</span>
-              <input id="create-buyer" type="text" autocomplete="off" />
+              <input id="create-buyer" type="text" autocomplete="off" list="buyer-history-options" />
             </label>
           </div>
           <section id="create-batch-products-panel" class="batch-products-panel" hidden>
@@ -265,11 +266,13 @@
             </label>
             <label>
               <span>buyer</span>
-              <input id="move-buyer" type="text" autocomplete="off" />
+              <input id="move-buyer" type="text" autocomplete="off" list="buyer-history-options" />
             </label>
           </div>
         </section>
       </form>
+
+      <datalist id="buyer-history-options"></datalist>
 
       <section id="dropbox-browser" class="card dropbox-browser command-only" hidden>
         <div class="browser-header">
@@ -372,6 +375,6 @@
       </section>
     </main>
 
-    <script type="module" src="./src/app.js?v=61"></script>
+    <script type="module" src="./src/app.js?v=62"></script>
   </body>
 </html>

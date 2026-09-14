@@ -12,7 +12,7 @@ import {
   splitTitleAndParams,
   stripImportListMarker,
   stripTrailingPriceToken,
-} from "./picnestProtocol.mjs?v=61";
+} from "./picnestProtocol.mjs?v=62";
 
 const state = {
   mode: "products",
@@ -47,6 +47,7 @@ const DROPBOX_EXPIRES_AT_STORAGE_KEY = "picnest-mobile-dropbox-oauth-expires-at"
 const DROPBOX_PKCE_VERIFIER_STORAGE_KEY = "picnest-mobile-dropbox-pkce-verifier";
 const DROPBOX_OAUTH_STATE_STORAGE_KEY = "picnest-mobile-dropbox-oauth-state";
 const DROPBOX_SCOPES = "files.content.write files.content.read files.metadata.read";
+const BUYER_HISTORY_STORAGE_KEY = "picnest-mobile-buyer-history";
 
 const FIELD_INPUTS = [
   ["title", "field-title"],
@@ -82,6 +83,14 @@ function byId(id) {
 
 function value(id) {
   return String(byId(id)?.value || "").trim();
+}
+
+function escapeHtml(text) {
+  return String(text || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 function checkedValue(name, fallback = "") {
@@ -909,6 +918,31 @@ function validateOrderFieldsForCommands(commands) {
   });
   if (!invalid.length) return "";
   return "Для статусов кроме 'На выкупе' обязательны order_id и buyer";
+}
+
+function buyerHistoryValues() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(BUYER_HISTORY_STORAGE_KEY) || "[]");
+    return Array.isArray(parsed) ? parsed.map((item) => String(item || "").trim()).filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
+
+function renderBuyerHistoryOptions() {
+  const target = byId("buyer-history-options");
+  if (!target) return;
+  target.innerHTML = buyerHistoryValues()
+    .map((buyer) => `<option value="${escapeHtml(buyer)}"></option>`)
+    .join("");
+}
+
+function rememberBuyerValue(valueText) {
+  const buyer = String(valueText || "").trim();
+  if (!buyer) return;
+  const values = [buyer, ...buyerHistoryValues().filter((item) => item.toLocaleLowerCase() !== buyer.toLocaleLowerCase())].slice(0, 30);
+  localStorage.setItem(BUYER_HISTORY_STORAGE_KEY, JSON.stringify(values));
+  renderBuyerHistoryOptions();
 }
 
 function renderParsedCreateFields(command) {
@@ -1822,7 +1856,7 @@ async function sendCurrentCommandToDropbox() {
   const commandsWithoutImages = rawCommands.filter((command) => command.type === "create_product" && !commandHasImages(command));
   if (commandsWithoutImages.length) {
     setStatus(
-      `Нельзя отправить create_product без main image. Добавьте Main image URL для строк: ${commandsWithoutImages.map((command) => command.command_id).join(", ")}`,
+      `Нельзя отправить create_product без main image. Добавьте Main image для строк: ${commandsWithoutImages.map((command) => command.payload?.import_input_line || command.command_id).join("; ")}`,
       true
     );
     return;
@@ -1940,12 +1974,14 @@ function bindEvents() {
     element.addEventListener("input", () => {
       if (element.id === "create-title") setSelectedCreateProductField("title", element.value);
       if (element.id === "create-user-params") setSelectedCreateProductField("userParams", element.value);
+      if (element.id === "create-buyer" || element.id === "move-buyer") rememberBuyerValue(element.value);
       if (CREATE_BATCH_IMAGE_INPUTS[element.id] && createProductInputLines().length > 1) return;
       render();
     });
     element.addEventListener("change", () => {
       if (element.id === "create-title") setSelectedCreateProductField("title", element.value);
       if (element.id === "create-user-params") setSelectedCreateProductField("userParams", element.value);
+      if (element.id === "create-buyer" || element.id === "move-buyer") rememberBuyerValue(element.value);
       if (CREATE_BATCH_IMAGE_INPUTS[element.id] && createProductInputLines().length > 1) return;
       render();
     });
@@ -2072,6 +2108,7 @@ function bindEvents() {
 
 async function bootstrap() {
   loadDropboxSettings();
+  renderBuyerHistoryOptions();
   bindEvents();
   updateCreateImageSourcePanels();
   await handleDropboxRedirect();
