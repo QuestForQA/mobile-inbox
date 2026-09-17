@@ -12,7 +12,7 @@ import {
   splitTitleAndParams,
   stripImportListMarker,
   stripTrailingPriceToken,
-} from "./picnestProtocol.mjs?v=65";
+} from "./picnestProtocol.mjs?v=66";
 
 const state = {
   mode: "products",
@@ -188,21 +188,17 @@ function productsRootPath() {
     : "/ЗП";
 }
 
-function statusBrowserRootPath() {
-  return joinDropboxPath(productsRootPath(), "PicNest_NotProtected");
-}
-
 function inboxImagesRootPath() {
   return joinDropboxPath(normalizeDropboxPath(value("dropbox-inbox-path")), "images");
 }
 
 function browserRootPathForTarget(targetInputId) {
-  if (targetInputId === "move-main-image-filename") return statusBrowserRootPath();
+  if (targetInputId === "move-main-image-filename") return productsRootPath();
   if (targetInputId === "create-main-image-dropbox" || targetInputId === "create-duplicate-image-dropbox") {
     return productsRootPath();
   }
   if (targetInputId === "add-image-dropbox") return productsRootPath();
-  return statusBrowserRootPath();
+  return productsRootPath();
 }
 
 function clampDropboxPathToRoot(path, rootPath) {
