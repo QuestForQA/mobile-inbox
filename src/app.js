@@ -12,7 +12,7 @@ import {
   splitTitleAndParams,
   stripImportListMarker,
   stripTrailingPriceToken,
-} from "./picnestProtocol.mjs?v=62";
+} from "./picnestProtocol.mjs?v=64";
 
 const state = {
   mode: "products",
@@ -306,6 +306,32 @@ function resetCreateBatchImageState() {
     title: [],
     userParams: [],
   };
+}
+
+function preserveCreateBatchImagesForLines(productLines) {
+  const nextTotal = Math.max(productLines.length, 1);
+  const previousTotal = Math.max(state.createBatchImageProductCount, 1);
+
+  // With one product the text-based image choices live directly in the form.
+  // Capture them before a newly added product turns the editor into batch mode.
+  if (previousTotal === 1) {
+    Object.entries(CREATE_BATCH_IMAGE_INPUTS).forEach(([inputId, key]) => {
+      const input = byId(inputId);
+      if (input) {
+        state.createBatchImages[key][0] = input.value || "";
+      }
+    });
+  }
+
+  for (const key of Object.keys(state.createBatchImages)) {
+    const previous = state.createBatchImages[key] || [];
+    state.createBatchImages[key] = Array.from(
+      { length: nextTotal },
+      (_, index) => previous[index] ?? (key === "mainPhone" || key === "duplicatePhone" ? [] : "")
+    );
+  }
+  state.createBatchImageProductCount = nextTotal;
+  state.selectedCreateProductIndex = Math.min(state.selectedCreateProductIndex, nextTotal - 1);
 }
 
 function clearActiveCommandFormAfterSend() {
@@ -1064,7 +1090,7 @@ function clearInput(inputId) {
     ensureCreateBatchImageState(Math.max(total, 1));
     state.createBatchImages.duplicatePhone[state.selectedCreateProductIndex] = [];
   }
-  if (CREATE_BATCH_IMAGE_INPUTS[inputId] && createProductInputLines().length > 1) {
+  if (CREATE_BATCH_IMAGE_INPUTS[inputId]) {
     setCreateBatchImageValue(inputId, state.selectedCreateProductIndex, "");
   }
   render();
@@ -1972,18 +1998,22 @@ function setMode(mode) {
 function bindEvents() {
   document.querySelectorAll("input, select, textarea").forEach((element) => {
     element.addEventListener("input", () => {
+      if (element.id === "create-import-input-line") return;
+      if (element.id === "create-title") setSelectedCreateProductField("title", element.value);
+      if (element.id === "create-user-params") setSelectedCreateProductField("userParams", element.value);
+      if (CREATE_BATCH_IMAGE_INPUTS[element.id] && createProductInputLines().length > 1) return;
+      render();
+    });
+    element.addEventListener("change", () => {
+      if (element.id === "create-import-input-line") return;
       if (element.id === "create-title") setSelectedCreateProductField("title", element.value);
       if (element.id === "create-user-params") setSelectedCreateProductField("userParams", element.value);
       if (element.id === "create-buyer" || element.id === "move-buyer") rememberBuyerValue(element.value);
       if (CREATE_BATCH_IMAGE_INPUTS[element.id] && createProductInputLines().length > 1) return;
       render();
     });
-    element.addEventListener("change", () => {
-      if (element.id === "create-title") setSelectedCreateProductField("title", element.value);
-      if (element.id === "create-user-params") setSelectedCreateProductField("userParams", element.value);
+    element.addEventListener("blur", () => {
       if (element.id === "create-buyer" || element.id === "move-buyer") rememberBuyerValue(element.value);
-      if (CREATE_BATCH_IMAGE_INPUTS[element.id] && createProductInputLines().length > 1) return;
-      render();
     });
   });
 
@@ -2003,17 +2033,16 @@ function bindEvents() {
   });
 
   byId("create-import-input-line").addEventListener("input", () => {
-    resetCreateBatchImageState();
     const productLines = createProductInputLines();
+    preserveCreateBatchImagesForLines(productLines);
     if (productLines.length <= 1) {
       const parsed = parseImportInputLine(productLines[0] || value("create-import-input-line"));
       byId("create-title").value = parsed.title;
       byId("create-user-params").value = parsed.userParams;
     } else {
       resetCreateBatchFields(productLines);
-      state.selectedCreateProductIndex = 0;
-      byId("create-title").value = state.createBatchFields.title[0] || "";
-      byId("create-user-params").value = state.createBatchFields.userParams[0] || "";
+      byId("create-title").value = state.createBatchFields.title[state.selectedCreateProductIndex] || "";
+      byId("create-user-params").value = state.createBatchFields.userParams[state.selectedCreateProductIndex] || "";
     }
     render();
   });
