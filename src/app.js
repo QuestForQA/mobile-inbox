@@ -12,7 +12,7 @@ import {
   splitTitleAndParams,
   stripImportListMarker,
   stripTrailingPriceToken,
-} from "./picnestProtocol.mjs?v=64";
+} from "./picnestProtocol.mjs?v=65";
 
 const state = {
   mode: "products",
